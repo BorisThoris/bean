@@ -1,0 +1,8 @@
+.vs/
+.sbox/
+**/bin/
+**/obj/
+*.user
+*.suo
+*.tmp
+*.log

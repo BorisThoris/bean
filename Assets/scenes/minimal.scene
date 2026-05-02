@@ -1,0 +1,85 @@
+{
+  "__guid": "9f832399-4887-46b0-8f21-2ee284f538e2",
+  "GameObjects": [
+    {
+      "__guid": "1b3e6738-27af-4c9b-842f-7426d259f0d1",
+      "Flags": 0,
+      "Name": "Main Camera",
+      "Position": "-760,0,310",
+      "Rotation": "0,0.104528,0,0.994522",
+      "Enabled": true,
+      "Components": [
+        {
+          "__type": "Sandbox.CameraComponent",
+          "__guid": "e4597e1d-2cc5-4323-b378-80ffdb20c187",
+          "BackgroundColor": "0.07,0.085,0.105,1",
+          "ClearFlags": "All",
+          "FieldOfView": 75,
+          "IsMainCamera": true,
+          "Orthographic": false,
+          "OrthographicHeight": 1204,
+          "Priority": 1,
+          "RenderExcludeTags": "",
+          "RenderTags": "",
+          "TargetEye": "None",
+          "Viewport": "0,0,1,1",
+          "ZFar": 10000,
+          "ZNear": 10
+        }
+      ]
+    },
+    {
+      "__guid": "bfc59c12-1ed2-4f91-8956-a95a315eac3c",
+      "Flags": 0,
+      "Name": "Key Light",
+      "Position": "-180,-260,420",
+      "Rotation": "0.749052,0.5386431,-0.3131638,0.2251959",
+      "Enabled": true,
+      "Components": [
+        {
+          "__type": "Sandbox.DirectionalLight",
+          "__guid": "a05f62db-abc0-4e65-ba43-a642ce25b194",
+          "FogMode": "Enabled",
+          "FogStrength": 0.35,
+          "LightColor": "0.92,0.96,1,1",
+          "Shadows": true,
+          "SkyColor": "0.08,0.1,0.13,1"
+        }
+      ]
+    },
+    {
+      "__guid": "8a4ce495-ac39-4125-bcf1-7903ce9714f2",
+      "Flags": 0,
+      "Name": "Physical Fastest Tapper Game",
+      "Enabled": true,
+      "Components": [
+        {
+          "__type": "PhysicalFastestTapperGame",
+          "__guid": "42f41cc8-f44f-4899-96f4-ce46d85b39d8",
+          "CooldownSeconds": 0.5,
+          "GameDurationSeconds": 10,
+          "MaxButtonScale": 2,
+          "ScalingFactor": 0.05
+        }
+      ]
+    }
+  ],
+  "SceneProperties": {
+    "FixedUpdateFrequency": 50,
+    "MaxFixedUpdates": 5,
+    "NetworkFrequency": 30,
+    "NetworkInterpolation": true,
+    "ThreadedAnimation": true,
+    "TimeScale": 1,
+    "UseFixedUpdate": true,
+    "NavMesh": {
+      "Enabled": false,
+      "IncludeStaticBodies": true,
+      "IncludeKeyframedBodies": true,
+      "IncludeDisabledBodies": false,
+      "IncludeMeshes": true,
+      "IncludedBodies": "",
+      "ExcludedBodies": ""
+    }
+  }
+}
