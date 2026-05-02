@@ -13,6 +13,9 @@ This is the handoff document for long-running refinement passes on the s&box phy
 
 ## Last Updated
 
+- 2026-05-02: Initialized the GitHub repository at `https://github.com/BorisThoris/bean`, pushed the current project, and added root documentation for gameplay, controls, layout, and verification.
+- 2026-05-02: Reverted the first-person/source-movement experiment back to the third-person bean camera and simple bean movement. Station claiming/locking remains active and floating station heads remain removed.
+- 2026-05-02: Added third-person player beans. Players now spawn unclaimed, walk to a platform, claim it by pressing its button, and are locked to only that station for readying/tapping.
 - 2026-05-02: Converted Construct mode into a real ambient-world setup. The fake generated office/backdrop/crowd/prop layer is now suppressed when Construct loads, and the tapper stage is moved to a compact Construct placement.
 - 2026-05-02: Hardened Construct loading diagnostics against null `SceneMap` metadata so `OnLoad`/`OnStart` logging cannot cause the reported null-reference task exception. Added regression tests for null/failed diagnostic formatting.
 - 2026-05-02: Moved Construct loading to the documented component `OnLoad` path with async `SceneMap.CreateAsync`. `OnStart` now builds the arena after map load state is known.
@@ -21,9 +24,9 @@ This is the handoff document for long-running refinement passes on the s&box phy
 
 ## Current Focus
 
-- Verify Construct map loading in the editor/runtime.
-- Capture station, spectator, and results screenshots with the Construct backdrop.
-- Keep build and scene-load gates passing while executing the remaining refinement epics.
+- Verify Construct map loading and third-person bean/platform claiming in editor/runtime.
+- Capture station, roaming bean, spectator, and results screenshots with the Construct backdrop.
+- Keep build, unit test, task inventory, and scene-load gates passing while executing the remaining refinement epics.
 
 ## Key Files
 
@@ -36,6 +39,9 @@ This is the handoff document for long-running refinement passes on the s&box phy
 - `code/PhysicalFastestTapperGame.Round.cs`
 - `code/PhysicalFastestTapperGame.Visuals.cs`
 - `code/PhysicalTapButton.cs`
+- `code/TapperPlayerBean.cs`
+- `code/TapperStationInteractionRules.cs`
+- `README.md`
 - `tasks/CONSTRUCT_WORLD_DECISION.md`
 - `tasks/board.md`
 - `tasks/OPEN_TASKS_INVENTORY.md`
@@ -45,6 +51,7 @@ This is the handoff document for long-running refinement passes on the s&box phy
 ```powershell
 node scripts/validate-task-inventory.mjs
 node scripts/list-open-tasks.mjs > tasks/OPEN_TASKS_INVENTORY.md
+dotnet test code\unittest\sweeper.tests.csproj
 dotnet build code\sweeper.csproj
 ```
 
