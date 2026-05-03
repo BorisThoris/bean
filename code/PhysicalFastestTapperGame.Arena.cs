@@ -422,7 +422,7 @@ public sealed partial class PhysicalFastestTapperGame
 		var screenCenter = new Vector3( screenLayout.ScreenX, screenLayout.ScreenY, screenLayout.ScreenZ );
 		var facing = new Vector3( screenLayout.FacingX, screenLayout.FacingY, screenLayout.FacingZ );
 		var rotation = Rotation.LookAt( facing, Vector3.Up );
-		var displayRotation = Rotation.LookAt( -facing, Vector3.Up );
+		var displayRotation = Rotation.LookAt( facing, Vector3.Up );
 		var screen = CreateModelObjectWorld( "Arena Wall Screen", screenCenter, new Vector3( ArenaWallScreenLayoutMath.ScreenModelThickness, screenLayout.ScreenWidth, screenLayout.ScreenHeight ), WallPanelModel, new Color( 0.025f, 0.032f, 0.045f, 1f ), false, false, ModelPlacementAnchor.Center, rotation );
 
 		var uiObject = FindOrCreate( "Arena Wall Screen UI" );
@@ -431,11 +431,16 @@ public sealed partial class PhysicalFastestTapperGame
 		uiObject.LocalScale = Vector3.One * screenLayout.UiScale;
 
 		var worldPanel = uiObject.Components.GetOrCreate<WorldPanel>();
+		worldPanel.PanelSize = new Vector2( screenLayout.CssWidth, screenLayout.CssHeight );
+		worldPanel.RenderScale = 1f;
 		worldPanel.InteractionRange = 0f;
 
 		WallScreen = uiObject.Components.GetOrCreate<Sandbox.ui.ArenaWallScreen>();
 		WallScreen.Game = this;
 		CreateArenaWallFallbackText( screenLayout, displayRotation );
+		SetWallFallbackVisible( ArenaWallScreenLayoutMath.ShouldShowFallback( WallScreen.IsValid() ) );
+		var scaleRatio = uiObject.LocalScale.x / 100f;
+		Log.Info( $"[TapperWallScreen] panelSize='{worldPanel.PanelSize}' renderScale={worldPanel.RenderScale:0.###} localScale='{uiObject.LocalScale}' scaleRatio={scaleRatio:0.###} displayForward='{displayRotation.Forward}' screen='{screenLayout.ScreenWidth:0.#}x{screenLayout.ScreenHeight:0.#}' fallback={ArenaWallScreenLayoutMath.ShouldShowFallback( WallScreen.IsValid() )}" );
 	}
 
 	private void CreateArenaWallFallbackText( ArenaWallScreenLayout screenLayout, Rotation rotation )
@@ -443,15 +448,18 @@ public sealed partial class PhysicalFastestTapperGame
 		var basePosition = new Vector3( screenLayout.UiX + screenLayout.FacingX * 18f, screenLayout.UiY + screenLayout.FacingY * 18f, screenLayout.UiZ + screenLayout.FacingZ * 18f );
 		var right = rotation.Right;
 		var up = rotation.Up;
+		var halfWidth = screenLayout.ScreenWidth * 0.5f;
+		var halfHeight = screenLayout.ScreenHeight * 0.5f;
+		var scale = screenLayout.ScreenHeight / 520f;
 
 		WallFallbackText = new ArenaWallFallbackText
 		{
-			Title = CreateWallFallbackTextObject( "Arena Wall Fallback Title", basePosition - right * 430f + up * 210f, rotation, 0.92f, ReadyStationColor ),
-			Debug = CreateWallFallbackTextObject( "Arena Wall Fallback Debug", basePosition + right * 650f + up * 224f, rotation, 0.26f, new Color( 1f, 0.86f, 0.2f, 1f ) ),
-			Headline = CreateWallFallbackTextObject( "Arena Wall Fallback Headline", basePosition - right * 430f + up * 90f, rotation, 1.28f, WinnerStationColor ),
-			Mode = CreateWallFallbackTextObject( "Arena Wall Fallback Mode", basePosition - right * 430f - up * 54f, rotation, 0.52f, Color.White ),
-			Leaderboard = CreateWallFallbackTextObject( "Arena Wall Fallback Leaderboard", basePosition - right * 30f + up * 94f, rotation, 0.48f, Color.White ),
-			Stations = CreateWallFallbackTextObject( "Arena Wall Fallback Stations", basePosition - right * 30f - up * 96f, rotation, 0.42f, Color.White )
+			Title = CreateWallFallbackTextObject( "Arena Wall Fallback Title", basePosition - right * (halfWidth * 0.42f) + up * (halfHeight * 0.34f), rotation, 0.92f * scale, ReadyStationColor ),
+			Debug = CreateWallFallbackTextObject( "Arena Wall Fallback Debug", basePosition + right * (halfWidth * 0.38f) + up * (halfHeight * 0.36f), rotation, 0.26f * scale, new Color( 1f, 0.86f, 0.2f, 1f ) ),
+			Headline = CreateWallFallbackTextObject( "Arena Wall Fallback Headline", basePosition - right * (halfWidth * 0.42f) + up * (halfHeight * 0.08f), rotation, 1.28f * scale, WinnerStationColor ),
+			Mode = CreateWallFallbackTextObject( "Arena Wall Fallback Mode", basePosition - right * (halfWidth * 0.42f) - up * (halfHeight * 0.26f), rotation, 0.52f * scale, Color.White ),
+			Leaderboard = CreateWallFallbackTextObject( "Arena Wall Fallback Leaderboard", basePosition + right * (halfWidth * 0.08f) + up * (halfHeight * 0.12f), rotation, 0.48f * scale, Color.White ),
+			Stations = CreateWallFallbackTextObject( "Arena Wall Fallback Stations", basePosition + right * (halfWidth * 0.08f) - up * (halfHeight * 0.28f), rotation, 0.42f * scale, Color.White )
 		};
 	}
 
@@ -466,6 +474,24 @@ public sealed partial class PhysicalFastestTapperGame
 		renderer.Scale = scale;
 		renderer.Color = color;
 		return renderer;
+	}
+
+	private void SetWallFallbackVisible( bool visible )
+	{
+		SetTextRendererVisible( WallFallbackText?.Title, visible );
+		SetTextRendererVisible( WallFallbackText?.Debug, visible );
+		SetTextRendererVisible( WallFallbackText?.Headline, visible );
+		SetTextRendererVisible( WallFallbackText?.Mode, visible );
+		SetTextRendererVisible( WallFallbackText?.Leaderboard, visible );
+		SetTextRendererVisible( WallFallbackText?.Stations, visible );
+	}
+
+	private static void SetTextRendererVisible( TextRenderer renderer, bool visible )
+	{
+		if ( !renderer.IsValid() || !renderer.GameObject.IsValid() )
+			return;
+
+		renderer.GameObject.Enabled = visible;
 	}
 
 	private static Vector3 GetModelAnchorLocalPosition( ModelMetrics metrics, ModelPlacementAnchor anchor )

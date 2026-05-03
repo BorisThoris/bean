@@ -170,6 +170,11 @@ public sealed partial class PhysicalFastestTapperGame
 		if ( WallFallbackText is null )
 			return;
 
+		var showFallback = ArenaWallScreenLayoutMath.ShouldShowFallback( WallScreen.IsValid() );
+		SetWallFallbackVisible( showFallback );
+		if ( !showFallback )
+			return;
+
 		SetText( WallFallbackText.Title, GetWallScreenTitle() );
 		SetText( WallFallbackText.Debug, "FALLBACK" );
 		SetText( WallFallbackText.Headline, GetWallScreenHeadline() );

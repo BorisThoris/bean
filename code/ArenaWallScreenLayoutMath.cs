@@ -57,24 +57,23 @@ public static class ArenaWallScreenLayoutMath
 {
 	public const float ScreenInsetFromRearWall = 28f;
 	public const float ScreenCenterY = 0f;
-	public const float ScreenCenterZ = 330f;
 	public const float ScreenModelThickness = 30f;
-	public const float ScreenMaxWidth = 2860f;
-	public const float ScreenWidthMargin = 180f;
-	public const float ScreenHeight = 520f;
+	public const float WallEdgePadding = 20f;
+	public const float WallVerticalPadding = 20f;
 	public const float TargetZOffset = 180f;
 	public const float UiForwardOffset = 48f;
-	public const float UiScale = 0.75f;
-	public const int CssWidth = 2200;
-	public const int CssHeight = 900;
+	public const float WorldPanelWorldScale = 10f;
 
 	public static ArenaWallScreenLayout Build( RuntimeRoomLayout roomLayout, float stageX = 0f, float stageY = 0f, float stageZ = 0f )
 	{
 		var screenX = roomLayout.RearWallX - ScreenInsetFromRearWall;
 		var screenY = ScreenCenterY;
-		var screenZ = ScreenCenterZ;
-		var screenWidth = MathF.Min( roomLayout.FloorDepth - ScreenWidthMargin, ScreenMaxWidth );
-		var screenHeight = ScreenHeight;
+		var screenZ = roomLayout.WallHeight * 0.5f;
+		var screenWidth = MathF.Max( 1f, roomLayout.FloorDepth - WallEdgePadding * 2f );
+		var screenHeight = MathF.Max( 1f, roomLayout.WallHeight - WallVerticalPadding * 2f );
+		var uiScale = WorldPanelWorldScale;
+		var cssWidth = Math.Max( 1, (int)MathF.Round( screenWidth ) );
+		var cssHeight = Math.Max( 1, (int)MathF.Round( screenHeight ) );
 
 		var targetX = stageX;
 		var targetY = stageY;
@@ -110,8 +109,19 @@ public static class ArenaWallScreenLayoutMath
 			screenY + facingY * UiForwardOffset,
 			screenZ + facingZ * UiForwardOffset,
 			UiForwardOffset,
-			UiScale,
-			CssWidth,
-			CssHeight );
+			uiScale,
+			cssWidth,
+			cssHeight );
+	}
+
+	public static bool ShouldShowFallback( bool wallScreenValid )
+	{
+		return !wallScreenValid;
+	}
+
+	public static bool IsDisplayFacingStage( ArenaWallScreenLayout layout, float displayForwardX, float displayForwardY, float displayForwardZ )
+	{
+		var dot = layout.FacingX * displayForwardX + layout.FacingY * displayForwardY + layout.FacingZ * displayForwardZ;
+		return dot > 0.99f;
 	}
 }

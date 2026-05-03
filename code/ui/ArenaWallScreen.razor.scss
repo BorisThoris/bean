@@ -1,12 +1,12 @@
 .arena-wall-screen {
-	width: 2200px;
-	height: 900px;
+	width: 100%;
+	height: 100%;
 	font-family: Poppins, Inter, Arial, sans-serif;
 	color: white;
 	background-color: rgba( 5, 8, 13, 0.96 );
-	border: 12px solid rgba( 48, 172, 255, 0.45 );
-	border-radius: 28px;
-	padding: 42px;
+	border: 5px solid rgba( 48, 172, 255, 0.45 );
+	border-radius: 10px;
+	padding: 18px 24px;
 	flex-direction: column;
 	overflow: hidden;
 }
@@ -15,7 +15,7 @@
 	width: 100%;
 	height: 100%;
 	flex-direction: column;
-	gap: 28px;
+	gap: 12px;
 }
 
 .top-bar {
@@ -24,11 +24,11 @@
 	justify-content: space-between;
 	align-items: flex-start;
 	border-bottom: 6px solid rgba( 90, 220, 255, 0.28 );
-	padding-bottom: 24px;
+	padding-bottom: 10px;
 }
 
 .title {
-	font-size: 78px;
+	font-size: 42px;
 	font-weight: 900;
 	color: rgb( 126, 226, 255 );
 	text-shadow: 0 0 20px rgba( 65, 190, 255, 0.85 );
@@ -38,11 +38,11 @@
 .top-meta {
 	flex-direction: column;
 	align-items: flex-end;
-	gap: 10px;
+	gap: 6px;
 }
 
 .debug-badge {
-	font-size: 26px;
+	font-size: 16px;
 	font-weight: 900;
 	color: rgb( 5, 8, 13 );
 	background-color: rgb( 124, 226, 255 );
@@ -51,58 +51,58 @@
 }
 
 .mode {
-	font-size: 38px;
+	font-size: 22px;
 	font-weight: 700;
 	color: rgb( 210, 235, 255 );
 	text-align: right;
-	max-width: 1180px;
-	line-height: 46px;
+	max-width: 68%;
+	line-height: 27px;
 }
 
 .main {
 	width: 100%;
 	flex-direction: row;
-	gap: 42px;
+	gap: 20px;
 }
 
 .headline {
-	width: 690px;
-	font-size: 112px;
+	width: 30%;
+	font-size: 56px;
 	font-weight: 900;
-	line-height: 112px;
+	line-height: 58px;
 	color: rgb( 255, 223, 96 );
 	text-shadow: 0 0 26px rgba( 255, 196, 40, 0.7 );
 }
 
 .leaderboard {
 	flex-grow: 1;
-	font-size: 46px;
+	font-size: 24px;
 	font-weight: 700;
-	line-height: 58px;
+	line-height: 31px;
 	color: rgb( 238, 247, 255 );
 	background-color: rgba( 20, 34, 52, 0.72 );
-	border-radius: 18px;
-	padding: 26px 32px;
+	border-radius: 8px;
+	padding: 14px 18px;
 	white-space: pre;
 }
 
 .station-grid {
 	width: 100%;
 	flex-direction: column;
-	gap: 14px;
-	margin-top: 6px;
+	gap: 6px;
+	margin-top: 0;
 }
 
 .station-row {
 	width: 100%;
-	min-height: 58px;
+	min-height: 30px;
 	flex-direction: row;
 	align-items: center;
 	background-color: rgba( 18, 28, 42, 0.86 );
-	border-left: 12px solid rgba( 145, 175, 205, 0.55 );
-	border-radius: 14px;
-	padding: 10px 22px;
-	gap: 26px;
+	border-left: 6px solid rgba( 145, 175, 205, 0.55 );
+	border-radius: 6px;
+	padding: 5px 12px;
+	gap: 12px;
 }
 
 .station-row.local {
@@ -131,15 +131,15 @@
 }
 
 .station {
-	width: 116px;
-	font-size: 50px;
+	width: 8%;
+	font-size: 24px;
 	font-weight: 900;
 	color: rgb( 128, 224, 255 );
 }
 
 .name {
-	width: 520px;
-	font-size: 48px;
+	width: 28%;
+	font-size: 24px;
 	font-weight: 800;
 	color: white;
 	white-space: nowrap;
@@ -148,8 +148,8 @@
 }
 
 .status {
-	width: 520px;
-	font-size: 44px;
+	width: 28%;
+	font-size: 23px;
 	font-weight: 900;
 	color: rgb( 255, 235, 145 );
 	white-space: nowrap;
@@ -159,7 +159,7 @@
 
 .meta {
 	flex-grow: 1;
-	font-size: 38px;
+	font-size: 21px;
 	font-weight: 700;
 	color: rgb( 204, 226, 245 );
 	text-align: right;
