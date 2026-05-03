@@ -37,6 +37,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<ProjectReference Include="../Libraries/bytesizedfox.sharptalktts/Code/sharptalktts.csproj" />
 		<ProjectReference Include="../../../addons/base/code/Base Library.csproj" />
 	</ItemGroup>
 

@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>package.bytesizedfox.sharptalktts</name>
+    </assembly>
+    <members>
+        <member name="M:SharpTalk.TtsEngine.SpeakWithEvents(System.String)">
+            <summary>
+            Like Speak, but also returns a timeline of phoneme events with start times
+            in seconds relative to the start of the returned audio.
+            </summary>
+        </member>
+        <member name="E:Sandbox.SharpTalkSpeaker.OnPhoneme">
+            <summary>Fired on the main thread as each phoneme starts playing.</summary>
+        </member>
+    </members>
+</doc>

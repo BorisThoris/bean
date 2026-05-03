@@ -1,35 +1,129 @@
 @using Sandbox
 @using Sandbox.UI
 @using System
+@using System.Linq
 @inherits PanelComponent
 
 <root class="arena-wall-screen">
 	@if ( Game.IsValid() )
 	{
+		var state = Game.GetWallScreenState();
+		var leaders = state.Leaders.Length > 0
+			? state.Leaders
+			: state.Stations
+				.Where( x => x.CssClass != "open" )
+				.OrderByDescending( x => x.Score )
+				.Select( ( station, index ) => new TapperWallLeaderboardDisplay( index + 1, station.Name, station.SteamId, station.Score, station.Speed, Math.Max( 0, 4 - index ), station.CssClass == "winner" ) )
+				.ToArray();
+		var top = leaders.FirstOrDefault();
+		var rest = leaders.Skip( 1 ).Take( 5 ).ToArray();
+		var hasLeader = leaders.Length > 0;
+		var maxScore = Math.Max( 1, leaders.Length > 0 ? leaders.Max( x => x.Score ) : state.Stations.Max( x => x.Score ) );
+		var maxSpeed = Math.Max( 1f, leaders.Length > 0 ? leaders.Max( x => x.PeakSpeed ) : state.Stations.Max( x => x.Speed ) );
+
 		<div class="screen-shell">
 			<div class="top-bar">
-				<div class="title">@Game.GetWallScreenTitle()</div>
-				<div class="top-meta">
-					<div class="debug-badge">@Game.GetWallScreenHtmlDebugText()</div>
-					<div class="mode">@Game.GetWallScreenModeText()</div>
+				<div>
+					<div class="debug-badge">@state.Debug</div>
+					<div class="title">@state.Title</div>
+				</div>
+				<div class="match-strip">
+					<div class="match-pill">@state.ModeName</div>
+					<div class="match-pill">ROUND @state.TournamentRound/@state.TournamentRounds</div>
+					<div class="match-pill">@state.ClaimedStations CLAIMED</div>
 				</div>
 			</div>
 
-			<div class="main">
-				<div class="headline">@Game.GetWallScreenHeadline()</div>
-				<div class="leaderboard">@Game.GetWallScreenLeaderboardText()</div>
+			<div class="arena-board">
+				<div class="hero-panel">
+					<div class="pulse-ring"></div>
+					<div class="headline">@state.Headline</div>
+					<div class="timer-row">
+						<span>@state.RoundState</span>
+						<strong>@Math.Max( 0, Math.Ceiling( state.TimeRemaining ) ).ToString( "00" )</strong>
+					</div>
+					<div class="round-meter">
+						<div style=@($"width: {Percent( state.RoundProgress )}%")></div>
+					</div>
+				</div>
+
+				<div class="leaderboard-panel">
+					<div class="panel-title">
+						<span>LEADERBOARD</span>
+						<small>LIVE RANKING</small>
+					</div>
+
+					@if ( hasLeader )
+					{
+						<div class=@($"leader-champion {(top.Winner ? "winner" : "")}")>
+							<div class="avatar avatar-large">@GetInitials( top.Name )</div>
+							<div class="champion-copy">
+								<div class="champion-kicker">#@top.Rank CURRENT LEADER</div>
+								<div class="champion-name">@top.Name</div>
+								<div class="champion-stats">
+									<span>@top.Score taps</span>
+									<span>@top.PeakSpeed.ToString( "0.0" )/s peak</span>
+									<span>@top.Points pts</span>
+								</div>
+							</div>
+						</div>
+
+						<div class="leader-list">
+							@foreach ( var leader in rest )
+							{
+								<div class=@($"leader-row {(leader.Winner ? "winner" : "")}")>
+									<div class="rank">@leader.Rank</div>
+									<div class="avatar">@GetInitials( leader.Name )</div>
+									<div class="leader-identity">
+										<div class="leader-name">@leader.Name</div>
+										<div class="leader-subline">@leader.Points tournament pts</div>
+									</div>
+									<div class="leader-metrics">
+										<strong>@leader.Score</strong>
+										<span>@leader.PeakSpeed.ToString( "0.0" )/s</span>
+									</div>
+									<div class="leader-bars">
+										<i style=@($"width: {Percent( leader.Score / (float)maxScore )}%")></i>
+										<b style=@($"width: {Percent( leader.PeakSpeed / maxSpeed )}%")></b>
+									</div>
+								</div>
+							}
+						</div>
+					}
+					else
+					{
+						<div class="empty-leaderboard">WALK TO A PLATFORM AND HIT ITS BUTTON TO CLAIM</div>
+					}
+				</div>
+
+				<div class="station-grid">
+					@foreach ( var row in state.Stations )
+					{
+						<div class=@($"station-card {row.CssClass}")>
+							<div class="station-top">
+								<span>@row.Station</span>
+								<strong>@row.Status</strong>
+							</div>
+							<div class="station-player">
+								<div class="avatar avatar-small">@GetInitials( row.Name )</div>
+								<div class="station-name">@row.Name</div>
+							</div>
+							<div class="station-stats">
+								<span>@row.Score taps</span>
+								<span>@row.Speed.ToString( "0.0" )/s</span>
+							</div>
+							<div class="mini-meters">
+								<div><i style=@($"width: {Percent( row.Progress )}%")></i></div>
+								<div><b style=@($"width: {Percent( row.Heat )}%")></b></div>
+							</div>
+						</div>
+					}
+				</div>
 			</div>
 
-			<div class="station-grid">
-				@foreach ( var row in Game.GetWallScreenStationRows() )
-				{
-					<div class=@($"station-row {row.CssClass}")>
-						<div class="station">@row.Station</div>
-						<div class="name">@row.Name</div>
-						<div class="status">@row.Status</div>
-						<div class="meta">@row.Meta</div>
-					</div>
-				}
+			<div class="bottom-band">
+				<span>@state.Mode</span>
+				<span>@state.EventPhase</span>
 			</div>
 		</div>
 	}
@@ -45,20 +139,44 @@
 {
 	[Property] public PhysicalFastestTapperGame Game { get; set; }
 
+	private static float Percent( float value )
+	{
+		return MathF.Round( value.Clamp( 0f, 1f ) * 100f );
+	}
+
+	private static string GetInitials( string name )
+	{
+		if ( string.IsNullOrWhiteSpace( name ) || name == "OPEN" )
+			return "--";
+
+		var parts = name.Split( ' ', StringSplitOptions.RemoveEmptyEntries );
+		if ( parts.Length == 0 )
+			return name.Length > 1 ? name[..2].ToUpper() : name.ToUpper();
+
+		var first = parts[0][0].ToString();
+		var second = parts.Length > 1 ? parts[1][0].ToString() : "";
+		var initials = first + second;
+		return initials.ToUpper();
+	}
+
 	protected override int BuildHash()
 	{
 		if ( !Game.IsValid() )
 			return 0;
 
-		var hash = HashCode.Combine(
-			Game.GetWallScreenTitle(),
-			Game.GetWallScreenHeadline(),
-			Game.GetWallScreenModeText(),
-			Game.GetWallScreenLeaderboardText(),
-			Game.GetWallScreenHtmlDebugText() );
+		var state = Game.GetWallScreenState();
+		var hash = HashCode.Combine( state.Title, state.Headline, state.Mode, state.Debug, state.RoundState, state.EventPhase );
+		hash = HashCode.Combine( hash, state.ModeName, state.TournamentRound, state.TournamentRounds, state.ClaimedStations );
+		hash = HashCode.Combine( hash, state.TimeRemaining, state.RoundProgress );
 
-		foreach ( var row in Game.GetWallScreenStationRows() )
-			hash = HashCode.Combine( hash, row.Station, row.Name, row.Status, row.Meta, row.CssClass );
+		foreach ( var row in state.Stations )
+		{
+			hash = HashCode.Combine( hash, row.Station, row.Name, row.Status, row.Score );
+			hash = HashCode.Combine( hash, row.Speed, row.Progress, row.Heat, row.CssClass );
+		}
+
+		foreach ( var leader in state.Leaders )
+			hash = HashCode.Combine( hash, leader.Rank, leader.Name, leader.Score, leader.PeakSpeed, leader.Points, leader.Winner );
 
 		return hash;
 	}

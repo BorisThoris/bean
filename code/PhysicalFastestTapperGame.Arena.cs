@@ -430,6 +430,15 @@ public sealed partial class PhysicalFastestTapperGame
 		uiObject.LocalRotation = displayRotation;
 		uiObject.LocalScale = Vector3.One * screenLayout.UiScale;
 
+		ConfigureArenaWallWorldPanel( uiObject, screenLayout );
+		CreateArenaWallFallbackText( screenLayout, displayRotation );
+		SetWallFallbackVisible( ArenaWallScreenLayoutMath.ShouldShowFallback( IsPrimaryWallScreenValid() ) );
+		var scaleRatio = uiObject.LocalScale.x / 100f;
+		Log.Info( $"[TapperWallScreen] mode='razor' panelSize='{screenLayout.CssWidth}x{screenLayout.CssHeight}' localScale='{uiObject.LocalScale}' scaleRatio={scaleRatio:0.###} displayForward='{displayRotation.Forward}' screen='{screenLayout.ScreenWidth:0.#}x{screenLayout.ScreenHeight:0.#}' fallback={ArenaWallScreenLayoutMath.ShouldShowFallback( IsPrimaryWallScreenValid() )}" );
+	}
+
+	private void ConfigureArenaWallWorldPanel( GameObject uiObject, ArenaWallScreenLayout screenLayout )
+	{
 		var worldPanel = uiObject.Components.GetOrCreate<WorldPanel>();
 		worldPanel.PanelSize = new Vector2( screenLayout.CssWidth, screenLayout.CssHeight );
 		worldPanel.RenderScale = 1f;
@@ -437,10 +446,9 @@ public sealed partial class PhysicalFastestTapperGame
 
 		WallScreen = uiObject.Components.GetOrCreate<Sandbox.ui.ArenaWallScreen>();
 		WallScreen.Game = this;
-		CreateArenaWallFallbackText( screenLayout, displayRotation );
-		SetWallFallbackVisible( ArenaWallScreenLayoutMath.ShouldShowFallback( WallScreen.IsValid() ) );
-		var scaleRatio = uiObject.LocalScale.x / 100f;
-		Log.Info( $"[TapperWallScreen] panelSize='{worldPanel.PanelSize}' renderScale={worldPanel.RenderScale:0.###} localScale='{uiObject.LocalScale}' scaleRatio={scaleRatio:0.###} displayForward='{displayRotation.Forward}' screen='{screenLayout.ScreenWidth:0.#}x{screenLayout.ScreenHeight:0.#}' fallback={ArenaWallScreenLayoutMath.ShouldShowFallback( WallScreen.IsValid() )}" );
+		WallScreen.Enabled = true;
+
+		Log.Info( $"[TapperWallScreen] nativeRazor={WallScreen.IsValid()} panelSize='{worldPanel.PanelSize}' renderScale={worldPanel.RenderScale:0.###} interactionRange={worldPanel.InteractionRange:0.#} fallback={ArenaWallScreenLayoutMath.ShouldShowFallback( IsPrimaryWallScreenValid() )}" );
 	}
 
 	private void CreateArenaWallFallbackText( ArenaWallScreenLayout screenLayout, Rotation rotation )

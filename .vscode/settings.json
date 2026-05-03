@@ -13,7 +13,8 @@
     "E:\\SteamLibrary\\steamapps\\common\\sbox\\editor\\MovieMaker\\Assets\\shaders",
     "E:\\SteamLibrary\\steamapps\\common\\sbox\\editor\\Hammer\\Assets\\shaders",
     "E:\\SteamLibrary\\steamapps\\common\\sbox\\editor\\DooEditor\\Assets\\shaders",
-    "E:\\SteamLibrary\\steamapps\\common\\sbox\\samples\\sweeper\\Assets\\shaders"
+    "E:\\SteamLibrary\\steamapps\\common\\sbox\\samples\\sweeper\\Assets\\shaders",
+    "E:\\SteamLibrary\\steamapps\\common\\sbox\\samples\\sweeper\\Libraries\\bytesizedfox.sharptalktts\\Assets\\shaders"
   ],
   "slang.predefinedMacros": [],
   "slang.workspaceFlavor": "vfx"

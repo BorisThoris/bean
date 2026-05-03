@@ -6,6 +6,11 @@
   <Folder Name="/Addons/">
     <Project Path="../../addons/base/code/Base Library.csproj" />
   </Folder>
+  <Folder Name="/Libraries/">
+    <Project Path="Libraries/bytesizedfox.sharptalktts/Code/sharptalktts.csproj" />
+    <Project Path="Libraries/bytesizedfox.sharptalktts/Editor/sharptalktts.editor.csproj" />
+    <Project Path="Libraries/bytesizedfox.sharptalktts/UnitTests/sharptalktts.unittest.csproj" />
+  </Folder>
   <Folder Name="/Tools/">
     <Project Path="../../addons/tools/Code/Base Editor Library.csproj" />
     <Project Path="../../editor/ActionGraph/Code/actiongraph.csproj" />

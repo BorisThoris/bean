@@ -20,7 +20,7 @@
     "PerMapRanking": false,
     "LeaderboardType": "None",
     "CsProjName": "",
-    "StartupScene": "scenes/minimal.scene",
+    "StartupScene": "scenes/webpanel-paint-test.scene",
     "ProjectTemplate": {
       "Icon": "view_in_ar",
       "Order": -10,

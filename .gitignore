@@ -6,3 +6,11 @@
 *.suo
 *.tmp
 *.log
+**/node_modules/
+web/wall-screen/.wall-capture/
+Assets/ui/react-wall-capture-*.png
+Assets/ui/react-wall-capture-*.png.tmp
+Assets/ui/react-wall-frame-*.rgba
+Assets/ui/react-wall-frame-*.rgba.tmp
+Assets/ui/react-wall-state.json
+Assets/ui/react-wall-state.json.tmp

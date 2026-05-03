@@ -1,0 +1,14 @@
+{
+  "Title": "SharpTalkTTS",
+  "Type": "library",
+  "Org": "bytesizedfox",
+  "Ident": "sharptalktts",
+  "Schema": 1,
+  "IncludeSourceFiles": false,
+  "Resources": null,
+  "PackageReferences": [],
+  "EditorReferences": null,
+  "Mounts": null,
+  "IsStandaloneOnly": false,
+  "Metadata": {}
+}

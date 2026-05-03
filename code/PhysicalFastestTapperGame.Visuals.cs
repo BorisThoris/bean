@@ -144,7 +144,38 @@ public sealed partial class PhysicalFastestTapperGame
 
 	public string GetWallScreenHtmlDebugText()
 	{
-		return "HTML";
+		return "NATIVE RAZOR WALL";
+	}
+
+	public TapperWallScreenState GetWallScreenState()
+	{
+		var duration = Math.Max( RoundDuration, 0.001f );
+		var timeRemaining = State == RoundState.Playing ? RoundTimeLeft : StateTimeLeft;
+		var ordered = GetOrderedResults();
+		var leaders = ordered.Select( ( player, index ) => new TapperWallLeaderboardDisplay(
+			index + 1,
+			player.Name,
+			GetPlayerSteamId( player ),
+			player.Score,
+			player.PeakSpeed,
+			player.TournamentPoints,
+			player.StationIndex == LastWinnerStation ) ).ToArray();
+
+		return new TapperWallScreenState(
+			GetWallScreenTitle(),
+			GetWallScreenHeadline(),
+			GetWallScreenModeText(),
+			GetWallScreenHtmlDebugText(),
+			State.ToString(),
+			EventPhase.ToString(),
+			GetModeLabel( GameMode ),
+			TournamentRound,
+			Math.Max( TournamentRounds, 1 ),
+			GetDisplayActiveCount(),
+			timeRemaining,
+			State == RoundState.Playing ? (1f - (RoundTimeLeft / duration)).Clamp( 0f, 1f ) : 0f,
+			leaders,
+			GetWallScreenStationRows() );
 	}
 
 	public TapperWallStationDisplay[] GetWallScreenStationRows()
@@ -160,9 +191,18 @@ public sealed partial class PhysicalFastestTapperGame
 				var speed = player?.LastSpeed ?? 0f;
 				var meta = $"{score} taps  {speed:0.0}/s";
 				var cssClass = GetWallStationRowCssClass( station, player );
-				return new TapperWallStationDisplay( $"S{station.Index + 1}", name, status, meta, cssClass );
+				var progress = State == RoundState.Playing && RoundDuration > 0f ? (1f - (RoundTimeLeft / RoundDuration)).Clamp( 0f, 1f ) : 0f;
+				return new TapperWallStationDisplay( $"S{station.Index + 1}", name, GetPlayerSteamId( player ), status, meta, cssClass, score, speed, progress, player?.Heat ?? 0f );
 			} )
 			.ToArray();
+	}
+
+	private static string GetPlayerSteamId( PlayerScore player )
+	{
+		if ( player?.Connection is null )
+			return "";
+
+		return player.Connection.SteamId.ToString();
 	}
 
 	private void UpdateWallFallbackText()
@@ -170,7 +210,7 @@ public sealed partial class PhysicalFastestTapperGame
 		if ( WallFallbackText is null )
 			return;
 
-		var showFallback = ArenaWallScreenLayoutMath.ShouldShowFallback( WallScreen.IsValid() );
+		var showFallback = ArenaWallScreenLayoutMath.ShouldShowFallback( IsPrimaryWallScreenValid() );
 		SetWallFallbackVisible( showFallback );
 		if ( !showFallback )
 			return;
@@ -207,6 +247,11 @@ public sealed partial class PhysicalFastestTapperGame
 			return "open";
 
 		return "claimed";
+	}
+
+	private bool IsPrimaryWallScreenValid()
+	{
+		return WallScreen.IsValid();
 	}
 
 	private string GetEventHeadlineText()
