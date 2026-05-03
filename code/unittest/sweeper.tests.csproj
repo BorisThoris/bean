@@ -13,7 +13,10 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<Compile Include="..\ArenaWallScreenLayoutMath.cs" Link="ArenaWallScreenLayoutMath.cs" />
 		<Compile Include="..\PhysicalFastestTapperGame.Diagnostics.cs" Link="PhysicalFastestTapperGame.Diagnostics.cs" />
+		<Compile Include="..\RuntimeRoomLayoutMath.cs" Link="RuntimeRoomLayoutMath.cs" />
+		<Compile Include="..\TapperStationObjectNames.cs" Link="TapperStationObjectNames.cs" />
 		<Compile Include="..\TapperStationInteractionRules.cs" Link="TapperStationInteractionRules.cs" />
 	</ItemGroup>
 </Project>

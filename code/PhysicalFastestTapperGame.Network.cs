@@ -20,6 +20,7 @@ public sealed partial class PhysicalFastestTapperGame
 		SyncedGameMode = (int)GameMode;
 		SyncedTournamentRound = TournamentRound;
 		SyncedEventPhase = (int)EventPhase;
+		SyncedStationCapacity = CurrentGeneratedStationCount;
 		SyncedResultOrder = string.Join( ",", GetOrderedResults().Select( x => x.StationIndex ) );
 
 		SyncedScores.Clear();
@@ -53,7 +54,17 @@ public sealed partial class PhysicalFastestTapperGame
 		GameMode = (TapperGameMode)SyncedGameMode;
 		TournamentRound = SyncedTournamentRound;
 		EventPhase = (TapperEventPhase)SyncedEventPhase;
+		ApplySyncedStationCapacity();
 		ApplySyncedDisplayPlayers();
+	}
+
+	private void ApplySyncedStationCapacity()
+	{
+		var target = Math.Clamp( SyncedStationCapacity, 1, 8 );
+		if ( target <= 0 || target == CurrentGeneratedStationCount )
+			return;
+
+		RebuildArenaForStationCapacity( target );
 	}
 
 	private void ApplySyncedDisplayPlayers()

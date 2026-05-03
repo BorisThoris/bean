@@ -15,35 +15,24 @@ public sealed partial class PhysicalFastestTapperGame : Component, Component.INe
 	[Property] public float CooldownSeconds { get; set; } = 0.5f;
 	[Property] public TapperGameMode GameMode { get; set; } = TapperGameMode.Classic10;
 	[Property] public bool AutoRotateModes { get; set; } = true;
-	[Property] public bool EnableAmbientVenueMotion { get; set; } = true;
-	[Property] public bool ShowRoundSummary { get; set; } = true;
 	[Property] public bool TournamentMode { get; set; } = true;
 	[Property, Range( 1, 9 )] public int TournamentRounds { get; set; } = 5;
 	[Property] public bool UseFinalTieBreaker { get; set; } = true;
 	[Property] public bool DebugVisuals { get; set; } = false;
 	[Property] public bool EnableFocusWindows { get; set; } = true;
-	[Property] public bool UseConstructWorld { get; set; } = true;
+	[Property] public bool UseConstructWorld { get; set; } = false;
 	[Property] public string ConstructMapName { get; set; } = "facepunch.construct";
-	[Property] public GameObject VenuePropPrefab { get; set; }
-	[Property] public GameObject PodiumPrefab { get; set; }
-	[Property] public GameObject LightRigPrefab { get; set; }
 
 	private static readonly Color IdleButtonColor = new( 0.92f, 0.08f, 0.07f, 1f );
 	private static readonly Color HotButtonColor = new( 1f, 0.76f, 0.05f, 1f );
-	private static readonly Color StageColor = new( 0.08f, 0.095f, 0.12f, 1f );
-	private static readonly Color PanelColor = new( 0.13f, 0.16f, 0.21f, 1f );
-	private static readonly Color OpenStationColor = new( 0.16f, 0.23f, 0.31f, 1f );
 	private static readonly Color ReadyStationColor = new( 0.2f, 0.82f, 1f, 1f );
 	private static readonly Color WinnerStationColor = new( 1f, 0.84f, 0.18f, 1f );
-	private static readonly Color VenueBackdropColor = new( 0.035f, 0.045f, 0.065f, 1f );
-	private static readonly Color VenueWallColor = new( 0.075f, 0.085f, 0.105f, 1f );
-	private static readonly Color VenueTrussColor = new( 0.18f, 0.19f, 0.205f, 1f );
-	private static readonly Color VenueSignColor = new( 0.22f, 0.78f, 0.92f, 1f );
-	private static readonly Color VenuePropColor = new( 0.055f, 0.06f, 0.07f, 1f );
+	private static readonly Color ClaimFrameIdleColor = new( 0.18f, 0.72f, 1f, 1f );
+	private static readonly Color ClaimFrameActiveColor = new( 0.2f, 1f, 0.42f, 1f );
+	private static readonly Color VenueWallColor = new( 0.13f, 0.145f, 0.165f, 1f );
 
 	private readonly List<TapperStation> Stations = new();
 	private readonly List<PlayerScore> Players = new();
-	private readonly List<AmbientVenueObject> AmbientVenueObjects = new();
 	private readonly Dictionary<string, PlayerScore> PlayersByConnection = new();
 
 	private RoundState State = RoundState.WaitingForPlayers;
@@ -56,12 +45,10 @@ public sealed partial class PhysicalFastestTapperGame : Component, Component.INe
 	private int TournamentRound = 1;
 	private TapperEventPhase EventPhase = TapperEventPhase.Warmup;
 
-	private TextRenderer TitleText;
-	private TextRenderer TimerText;
-	private TextRenderer LeaderboardText;
-	private TextRenderer ModeText;
-	private GameObject ArenaKeyGlow;
-	private ModelRenderer ArenaKeyGlowRenderer;
+	private Sandbox.ui.ArenaWallScreen WallScreen;
+	private ArenaWallFallbackText WallFallbackText;
+	private float ThirdPersonCameraYaw = 35f;
+	private float ThirdPersonCameraPitch = 18f;
 	private SceneMap VenueSceneMap;
 	private bool VenueMapLoaded;
 	private string VenueWorldStatus = "GENERATED FALLBACK";
@@ -73,6 +60,7 @@ public sealed partial class PhysicalFastestTapperGame : Component, Component.INe
 	[Sync] private int SyncedGameMode { get; set; }
 	[Sync] private int SyncedTournamentRound { get; set; } = 1;
 	[Sync] private int SyncedEventPhase { get; set; }
+	[Sync] private int SyncedStationCapacity { get; set; } = 4;
 	[Sync] private string SyncedResultOrder { get; set; } = "";
 	[Sync] private NetDictionary<string, int> SyncedScores { get; set; } = new();
 	[Sync] private NetDictionary<string, int> SyncedStations { get; set; } = new();
@@ -121,6 +109,7 @@ public sealed partial class PhysicalFastestTapperGame : Component, Component.INe
 		if ( IsAuthoritativeInstance() )
 		{
 			EnsureKnownConnections();
+			EnsureStationCapacityForLobby();
 			HandleLocalFallbackInput();
 			UpdateRoundFlow();
 			PublishNetworkState();
@@ -128,6 +117,7 @@ public sealed partial class PhysicalFastestTapperGame : Component, Component.INe
 		else
 		{
 			ApplySyncedRoundState();
+			HandleLocalFallbackInput();
 		}
 
 		EnsurePlayerBeans();

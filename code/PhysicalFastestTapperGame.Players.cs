@@ -51,7 +51,6 @@ public sealed partial class PhysicalFastestTapperGame
 		player.Ready = false;
 		player.LastInteractionMessage = "STATION LOCKED";
 		player.LastInteractionMessageTime = RealTime.Now;
-		MoveBeanToClaimedStation( player, station );
 		TryPlaySound( "ui.button.press" );
 		return true;
 	}
@@ -179,8 +178,19 @@ public sealed partial class PhysicalFastestTapperGame
 			return;
 		}
 
-		if ( Input.Keyboard.Pressed( "MOUSE1" ) && TryGetStationIndexUnderCursor( out var stationIndex ) )
+		if ( !IsPrimaryClickPressed() )
+			return;
+
+		if ( !IsThirdPersonLookActive() && TryGetStationIndexUnderCursor( out var stationIndex ) )
+		{
 			PressPhysicalButton( stationIndex );
+			return;
+		}
+
+		if ( TryGetNearestClaimableStationInRange( GetInteractingPlayer(), out stationIndex ) )
+			PressPhysicalButton( stationIndex );
+		else
+			PressPhysicalButton( GetLocalStationIndex() );
 	}
 
 	private int GetLocalStationIndex()
@@ -269,26 +279,56 @@ public sealed partial class PhysicalFastestTapperGame
 		return TryGetStationIndexFromButtonObject( hitObject, out stationIndex );
 	}
 
+	private bool TryGetNearestClaimableStationInRange( PlayerScore player, out int stationIndex )
+	{
+		stationIndex = -1;
+
+		if ( player is null || player.StationIndex >= 0 )
+			return false;
+
+		var lobbyPhase = State is RoundState.WaitingForPlayers or RoundState.Results or RoundState.Intermission;
+		if ( !lobbyPhase )
+			return false;
+
+		var station = Stations
+			.Where( x => !Players.Any( playerScore => playerScore != player && playerScore.StationIndex == x.Index ) )
+			.Where( x => IsPlayerCloseEnoughToClaim( player, x ) )
+			.OrderBy( x => player.Bean.IsValid() ? player.Bean.WorldPosition.Distance( x.Origin ) : float.MaxValue )
+			.FirstOrDefault();
+
+		if ( station is null )
+			return false;
+
+		stationIndex = station.Index;
+		return true;
+	}
+
 	internal static bool TryGetStationIndexFromButtonObject( GameObject hitObject, out int stationIndex )
 	{
 		stationIndex = -1;
-		if ( hitObject is null )
-			return false;
 
-		foreach ( var suffix in new[] { " Physical Tap Button", " Button Top", " Button Hitbox" } )
+		var current = hitObject;
+		while ( current.IsValid() )
 		{
-			var suffixIndex = hitObject.Name.IndexOf( suffix );
-			if ( suffixIndex <= "Station ".Length )
-				continue;
+			var tapButton = current.GetComponent<PhysicalTapButton>();
+			if ( tapButton.IsValid() )
+			{
+				stationIndex = tapButton.StationIndex;
+				return stationIndex >= 0;
+			}
 
-			var prefix = hitObject.Name[..suffixIndex];
-			if ( !prefix.StartsWith( "Station " ) )
-				continue;
-
-			if ( int.TryParse( prefix["Station ".Length..], out stationIndex ) )
+			if ( TapperStationObjectNames.TryParseStationIndex( current.Name, out stationIndex ) )
 				return true;
+
+			current = current.Parent;
 		}
 
+		stationIndex = -1;
 		return false;
+	}
+
+	internal static bool IsPrimaryClickPressed()
+	{
+		return Input.Pressed( "attack1" ) || Input.Keyboard.Pressed( "MOUSE1" );
 	}
 }

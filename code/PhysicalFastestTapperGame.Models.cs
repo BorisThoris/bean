@@ -16,16 +16,7 @@ public sealed partial class PhysicalFastestTapperGame
 	{
 		Bean,
 		Station,
-		Results,
 		Spectator
-	}
-
-	private enum AmbientVenueRole
-	{
-		Light,
-		Crowd,
-		Sign,
-		Celebration
 	}
 
 	private enum TapperEventPhase
@@ -122,49 +113,50 @@ public sealed partial class PhysicalFastestTapperGame
 		public Vector3 Origin;
 		public GameObject Root;
 		public GameObject Button;
-		public GameObject ButtonTop;
 		public GameObject ButtonHitbox;
-		public GameObject FloorMarker;
-		public GameObject ReadyLight;
-		public GameObject WinnerGlow;
-		public GameObject FocusRing;
-		public GameObject RaceTraceFill;
+		public GameObject[] ClaimFrame;
 		public GameObject ProgressFill;
 		public GameObject HeatFill;
-		public GameObject[] Sparks;
 		public ModelRenderer ButtonRenderer;
-		public ModelRenderer ButtonTopRenderer;
-		public ModelRenderer FloorMarkerRenderer;
-		public ModelRenderer ReadyLightRenderer;
-		public ModelRenderer WinnerGlowRenderer;
-		public ModelRenderer FocusRingRenderer;
-		public ModelRenderer RaceTraceFillRenderer;
+		public ModelRenderer[] ClaimFrameRenderers;
 		public ModelRenderer HeatFillRenderer;
-		public TextRenderer StationNumberText;
-		public TextRenderer NameText;
-		public TextRenderer ScoreText;
-		public TextRenderer SpeedText;
-		public TextRenderer ComboText;
-		public TextRenderer RankText;
-		public TextRenderer StatusText;
 		public Vector3 ButtonBaseScale;
-		public Vector3 ButtonTopBasePosition;
+		public Vector3[] ClaimFrameBaseScales;
 		public Vector3 ProgressBaseScale;
 		public Vector3 ProgressBasePosition;
 		public Vector3 HeatBaseScale;
 		public Vector3 HeatBasePosition;
+		public float BarModelHalfExtentX;
 		public float ButtonPunch;
 		public float FinishFlash;
 	}
 
-	private sealed class AmbientVenueObject
+	private sealed class ArenaWallFallbackText
 	{
-		public GameObject GameObject;
-		public ModelRenderer Renderer;
-		public Vector3 BasePosition;
-		public Vector3 BaseScale;
-		public Color BaseColor;
-		public AmbientVenueRole Role;
-		public float Phase;
+		public TextRenderer Title;
+		public TextRenderer Debug;
+		public TextRenderer Headline;
+		public TextRenderer Mode;
+		public TextRenderer Leaderboard;
+		public TextRenderer Stations;
+	}
+
+}
+
+public readonly struct TapperWallStationDisplay
+{
+	public readonly string Station;
+	public readonly string Name;
+	public readonly string Status;
+	public readonly string Meta;
+	public readonly string CssClass;
+
+	public TapperWallStationDisplay( string station, string name, string status, string meta, string cssClass )
+	{
+		Station = station;
+		Name = name;
+		Status = status;
+		Meta = meta;
+		CssClass = cssClass;
 	}
 }

@@ -3,9 +3,12 @@ using System.Linq;
 
 public sealed partial class PhysicalFastestTapperGame
 {
+	private const float ThirdPersonCameraDistance = 330f;
+	private const float ThirdPersonCameraHeight = 92f;
+
 	private void ApplyCursorState()
 	{
-		Mouse.Visibility = MouseVisibility.Visible;
+		Mouse.Visibility = IsThirdPersonLookActive() ? MouseVisibility.Hidden : MouseVisibility.Visible;
 		Mouse.CursorType = "pointer";
 	}
 
@@ -15,25 +18,12 @@ public sealed partial class PhysicalFastestTapperGame
 		if ( !camera.IsValid() )
 			return;
 
+		UpdateThirdPersonCameraInput();
+
 		var mode = GetCameraMode();
 		if ( mode == CameraMode.Bean )
 		{
-			var local = GetLocalPlayer();
-			var target = local?.Bean?.WorldPosition ?? GetVenueStageOrigin();
-			camera.WorldPosition = target + new Vector3( -240f, -250f, 190f );
-			AimCameraAt( camera, target + new Vector3( 65f, 60f, 70f ) );
-			camera.FieldOfView = 72f;
-			return;
-		}
-
-		if ( mode == CameraMode.Results )
-		{
-			var targetY = Stations.FirstOrDefault( x => x.Index == LastWinnerStation )?.Origin.y ?? 0f;
-			var stage = GetVenueStageOrigin();
-			var target = stage + new Vector3( 310f, (targetY - stage.y) * 0.1f, 150f );
-			camera.WorldPosition = stage + new Vector3( -620f, 310f + (targetY - stage.y) * 0.2f, 330f );
-			AimCameraAt( camera, target );
-			camera.FieldOfView = VenueMapLoaded ? 72f : 68f;
+			ConfigureThirdPersonCamera( camera );
 			return;
 		}
 
@@ -41,32 +31,54 @@ public sealed partial class PhysicalFastestTapperGame
 		if ( mode == CameraMode.Station && localStation is not null )
 		{
 			var target = localStation.Origin + new Vector3( 12f, 18f, 170f );
-			camera.WorldPosition = localStation.Origin + (VenueMapLoaded ? new Vector3( -430f, -205f, 248f ) : new Vector3( -520f, -156f, 286f ));
+			camera.WorldPosition = localStation.Origin + new Vector3( -520f, -156f, 286f );
 			AimCameraAt( camera, target );
-			camera.FieldOfView = VenueMapLoaded ? 68f : 64f;
+			camera.FieldOfView = 64f;
 			return;
 		}
 
 		var overviewStage = GetVenueStageOrigin();
-		camera.WorldPosition = overviewStage + (VenueMapLoaded ? new Vector3( -760f, 520f, 380f ) : new Vector3( -980f, 0f, 470f ));
+		camera.WorldPosition = overviewStage + new Vector3( -CurrentRoomLayout.FloorWidth * 0.38f, 0f, 470f );
 		AimCameraAt( camera, overviewStage + new Vector3( 120f, 0f, 180f ) );
-		camera.FieldOfView = VenueMapLoaded ? 78f : 74f;
+		camera.FieldOfView = 74f;
 	}
 
 	private CameraMode GetCameraMode()
 	{
-		var localStationIndex = GetLocalStationIndex();
 		var local = GetLocalPlayer();
-		if ( local is not null && local.StationIndex < 0 && !local.Spectating )
+
+		if ( local is not null && local.Bean.IsValid() && !local.Spectating )
 			return CameraMode.Bean;
 
-		if ( State is RoundState.Results or RoundState.Intermission && LastWinnerStation >= 0 )
-			return CameraMode.Results;
-
-		if ( Stations.Any( x => x.Index == localStationIndex ) )
-			return CameraMode.Station;
-
 		return CameraMode.Spectator;
+	}
+
+	private void ConfigureThirdPersonCamera( CameraComponent camera )
+	{
+		var local = GetLocalPlayer();
+		var beanPosition = local?.Bean?.WorldPosition ?? GetVenueStageOrigin();
+		var target = beanPosition + new Vector3( 0f, 0f, ThirdPersonCameraHeight );
+		var rotation = Rotation.From( ThirdPersonCameraPitch, ThirdPersonCameraYaw, 0f );
+		var offset = rotation.Backward * ThirdPersonCameraDistance + Vector3.Up * 12f;
+
+		camera.WorldPosition = target + offset;
+		AimCameraAt( camera, target + rotation.Forward * 45f );
+		camera.FieldOfView = 72f;
+	}
+
+	private void UpdateThirdPersonCameraInput()
+	{
+		if ( !IsThirdPersonLookActive() )
+			return;
+
+		var look = Input.AnalogLook;
+		ThirdPersonCameraYaw += look.yaw;
+		ThirdPersonCameraPitch = (ThirdPersonCameraPitch + look.pitch).Clamp( -25f, 65f );
+	}
+
+	private static bool IsThirdPersonLookActive()
+	{
+		return Input.Down( "attack2" ) || Input.Down( "MOUSE2" );
 	}
 
 	private static void AimCameraAt( CameraComponent camera, Vector3 target )

@@ -6,14 +6,10 @@ public sealed partial class PhysicalFastestTapperGame
 {
 	private void UpdateCentralDisplays()
 	{
-		SetText( TitleText, "TAPPER ARENA" );
-		SetText( TimerText, GetEventHeadlineText() );
-		var settings = GetModeSettings();
-		SetText( ModeText, $"{settings.Label}\nROUND {TournamentRound}/{Math.Max( TournamentRounds, 1 )}\n{GetDisplayActiveCount()} CLAIMED\n{GetVenueWorldLabel()}" );
-		SetText( LeaderboardText, BuildLeaderboardText() );
+		if ( WallScreen.IsValid() )
+			WallScreen.StateHasChanged();
 
-		if ( ModeText.IsValid() )
-			ModeText.Color = GetModeAccentColor();
+		UpdateWallFallbackText();
 	}
 
 	private string GetTimerText()
@@ -50,8 +46,6 @@ public sealed partial class PhysicalFastestTapperGame
 			UpdateStationVisuals( station, player );
 		}
 
-		UpdateArenaReadabilityVisuals();
-		UpdateAmbientVenueMotion();
 		ConfigureCamera();
 	}
 
@@ -66,15 +60,9 @@ public sealed partial class PhysicalFastestTapperGame
 		if ( station.Button.IsValid() )
 			station.Button.LocalScale = station.ButtonBaseScale * Math.Min( buttonScale, 2.2f );
 
-		if ( station.ButtonTop.IsValid() )
-			station.ButtonTop.LocalPosition = station.ButtonTopBasePosition + Vector3.Up * (-station.ButtonPunch * 10f);
-
 		var hotColor = Color.Lerp( IdleButtonColor, HotButtonColor, heat );
 		if ( station.ButtonRenderer.IsValid() )
 			station.ButtonRenderer.Tint = hotColor;
-
-		if ( station.ButtonTopRenderer.IsValid() )
-			station.ButtonTopRenderer.Tint = Color.Lerp( new Color( 1f, 0.22f, 0.16f, 1f ), new Color( 1f, 0.95f, 0.16f, 1f ), heat );
 
 		var duration = Math.Max( RoundDuration, 0.001f );
 		var progress = (RoundTimeLeft / duration).Clamp( 0f, 1f );
@@ -84,163 +72,136 @@ public sealed partial class PhysicalFastestTapperGame
 		if ( station.ProgressFill.IsValid() )
 		{
 			station.ProgressFill.LocalScale = new Vector3( station.ProgressBaseScale.x * progress, station.ProgressBaseScale.y, station.ProgressBaseScale.z );
-			station.ProgressFill.LocalPosition = station.ProgressBasePosition + Vector3.Right * ((station.ProgressBaseScale.x - station.ProgressFill.LocalScale.x) * -25f);
+			station.ProgressFill.LocalPosition = station.ProgressBasePosition + Vector3.Right * ((station.ProgressBaseScale.x - station.ProgressFill.LocalScale.x) * -station.BarModelHalfExtentX);
 		}
 
 		if ( station.HeatFill.IsValid() )
 		{
 			var fill = Math.Max( heat, station.FinishFlash );
 			station.HeatFill.LocalScale = new Vector3( station.HeatBaseScale.x * fill, station.HeatBaseScale.y, station.HeatBaseScale.z );
-			station.HeatFill.LocalPosition = station.HeatBasePosition + Vector3.Right * ((station.HeatBaseScale.x - station.HeatFill.LocalScale.x) * -25f);
+			station.HeatFill.LocalPosition = station.HeatBasePosition + Vector3.Right * ((station.HeatBaseScale.x - station.HeatFill.LocalScale.x) * -station.BarModelHalfExtentX);
 		}
 
 		if ( station.HeatFillRenderer.IsValid() )
 			station.HeatFillRenderer.Tint = Color.Lerp( new Color( 0.15f, 0.65f, 1f, 1f ), HotButtonColor, heat );
 
-		UpdateRaceTraceVisuals( station, player );
-		UpdateStationIdentityVisuals( station, player, heat );
-		SetText( station.NameText, player?.Name ?? "OPEN STATION" );
-		SetText( station.ScoreText, ShowRoundSummary && State is (RoundState.Results or RoundState.Intermission) ? BuildStationSummaryText( player ) : GetScoreText( player ) );
-		SetText( station.SpeedText, $"{player?.LastSpeed ?? 0f:0.0}/s" );
-		SetText( station.ComboText, $"x{player?.Combo ?? 0}" );
-		SetText( station.RankText, GetRankText( player ) );
-		SetText( station.StatusText, GetStationStatus( station, player ) );
-
-		UpdateSparkVisuals( station, heat );
+		UpdateClaimFrameVisuals( station, player );
 	}
 
-	private void UpdateStationIdentityVisuals( TapperStation station, PlayerScore player, float heat )
+	private void UpdateClaimFrameVisuals( TapperStation station, PlayerScore stationPlayer )
 	{
-		var occupied = player is not null;
-		var ready = player?.Ready ?? false;
-		var winner = State is RoundState.Results or RoundState.Intermission && station.Index == LastWinnerStation;
-		var local = station.Index == GetLocalStationIndex();
-		var modeAccent = GetModeAccentColor();
-		var stateColor = winner ? WinnerStationColor : ready ? ReadyStationColor : occupied ? Color.Lerp( modeAccent, HotButtonColor, heat ) : OpenStationColor;
-		if ( local && !winner )
-			stateColor = Color.Lerp( stateColor, ReadyStationColor, 0.35f + MathF.Sin( RealTime.Now * 4f ).Remap( -1f, 1f, 0f, 0.2f ) );
-
-		if ( station.FloorMarkerRenderer.IsValid() )
-			station.FloorMarkerRenderer.Tint = Color.Lerp( OpenStationColor, stateColor, occupied ? 0.75f : 0.25f );
-
-		if ( station.FloorMarker.IsValid() )
-		{
-			var localPulse = local ? 1.12f + MathF.Sin( RealTime.Now * 5f ) * 0.04f : 0.9f;
-			station.FloorMarker.LocalScale = new Vector3( 4.8f * localPulse, 4.8f * localPulse, 0.05f );
-		}
-
-		if ( station.ReadyLightRenderer.IsValid() )
-			station.ReadyLightRenderer.Tint = stateColor;
-
-		if ( station.ReadyLight.IsValid() )
-			station.ReadyLight.LocalScale = new Vector3( 0.45f + heat * 0.18f + station.FinishFlash * 0.12f, 0.45f + heat * 0.18f + station.FinishFlash * 0.12f, 0.08f );
-
-		if ( station.WinnerGlowRenderer.IsValid() )
-			station.WinnerGlowRenderer.Tint = winner ? WinnerStationColor : Color.Lerp( new Color( 0.04f, 0.05f, 0.06f, 1f ), HotButtonColor, Math.Max( heat * 0.25f, station.FinishFlash * 0.45f ) );
-
-		if ( station.WinnerGlow.IsValid() )
-		{
-			var pulse = winner ? 1.25f + MathF.Sin( RealTime.Now * 7f ) * 0.18f : 0.7f + heat * 0.12f + station.FinishFlash * 0.18f;
-			station.WinnerGlow.LocalScale = new Vector3( 2.6f * pulse, 2.6f * pulse, 0.08f );
-		}
-
-		if ( station.FocusRingRenderer.IsValid() )
-			station.FocusRingRenderer.Tint = player?.FocusWindowActive == true ? Color.Lerp( GetModeAccentColor(), HotButtonColor, 0.35f ) : new Color( 0.04f, 0.08f, 0.1f, 1f );
-
-		if ( station.FocusRing.IsValid() )
-		{
-			var focusPulse = player?.FocusWindowActive == true ? 1.2f + MathF.Sin( RealTime.Now * 12f ) * 0.12f : 0.82f;
-			station.FocusRing.LocalScale = new Vector3( 3.4f * focusPulse, 3.4f * focusPulse, 0.04f );
-		}
-
-		SetText( station.StationNumberText, local ? "YOUR STATION" : $"STATION {station.Index + 1}" );
-	}
-
-	private void UpdateRaceTraceVisuals( TapperStation station, PlayerScore player )
-	{
-		if ( !station.RaceTraceFill.IsValid() )
+		if ( station.ClaimFrame is null || station.ClaimFrameRenderers is null || station.ClaimFrameBaseScales is null )
 			return;
 
-		var trace = State is RoundState.Results or RoundState.Intermission
-			? player?.RaceTrace ?? 0f
-			: player?.Score > 0 ? GetRoundProgress() : 0f;
+		var local = GetLocalPlayer();
+		var lobbyPhase = State is RoundState.WaitingForPlayers or RoundState.Results or RoundState.Intermission;
+		var visible = stationPlayer is null
+			&& lobbyPhase
+			&& local is not null
+			&& !local.Spectating
+			&& local.StationIndex < 0;
 
-		trace = trace.Clamp( 0f, 1f );
-		station.RaceTraceFill.LocalScale = new Vector3( 4.9f * trace, 0.2f, 0.09f );
-		station.RaceTraceFill.LocalPosition = station.Origin + new Vector3( 34f - (4.9f - station.RaceTraceFill.LocalScale.x) * 25f, 86f, 138f );
+		var inRange = visible && local.BeanController.IsValid() && local.BeanController.IsWithinClaimRange( station.Origin );
+		var pulse = (MathF.Sin( RealTime.Now * (inRange ? 8f : 4f) ) + 1f) * 0.5f;
+		var color = Color.Lerp( inRange ? ClaimFrameActiveColor : ClaimFrameIdleColor, Color.White, inRange ? pulse * 0.28f : pulse * 0.12f );
+		var scaleMultiplier = 1f + (inRange ? 0.045f : 0.02f) * pulse;
 
-		if ( station.RaceTraceFillRenderer.IsValid() )
-			station.RaceTraceFillRenderer.Tint = Color.Lerp( GetModeAccentColor(), WinnerStationColor, player?.LastRoundPlacement == 1 ? 0.65f : 0.15f );
-	}
-
-	private void UpdateArenaReadabilityVisuals()
-	{
-		if ( !ArenaKeyGlowRenderer.IsValid() || !ArenaKeyGlow.IsValid() )
-			return;
-
-		var hottest = Players.Where( IsActiveCompetitor ).Select( x => x.Heat ).DefaultIfEmpty( 0f ).Max();
-		var winnerPulse = State is RoundState.Results or RoundState.Intermission && LastWinnerStation >= 0
-			? (MathF.Sin( RealTime.Now * 6f ) + 1f) * 0.5f
-			: 0f;
-
-		ArenaKeyGlowRenderer.Tint = Color.Lerp( Color.Lerp( new Color( 0.08f, 0.12f, 0.18f, 1f ), GetModeAccentColor(), 0.35f ), WinnerStationColor, Math.Max( hottest * 0.35f, winnerPulse * 0.55f ) );
-		ArenaKeyGlow.LocalScale = new Vector3( 18f + hottest * 2f + winnerPulse * 3f, 0.2f, 2.8f + winnerPulse * 0.4f );
-	}
-
-	private void UpdateAmbientVenueMotion()
-	{
-		if ( !EnableAmbientVenueMotion )
-			return;
-
-		var hottest = Players.Where( IsActiveCompetitor ).Select( x => x.Heat ).DefaultIfEmpty( 0f ).Max();
-		var celebration = State is RoundState.Results or RoundState.Intermission && LastWinnerStation >= 0;
-		var modeAccent = GetModeAccentColor();
-
-		foreach ( var ambient in AmbientVenueObjects )
+		for ( var i = 0; i < station.ClaimFrame.Length; i++ )
 		{
-			if ( ambient?.GameObject is null || !ambient.GameObject.IsValid() )
+			var frame = station.ClaimFrame[i];
+			if ( !frame.IsValid() )
 				continue;
 
-			var wave = MathF.Sin( RealTime.Now * 1.6f + ambient.Phase ).Remap( -1f, 1f, 0f, 1f );
-			switch ( ambient.Role )
-			{
-				case AmbientVenueRole.Crowd:
-					var bob = wave * (2f + hottest * 4f);
-					ambient.GameObject.LocalPosition = ambient.BasePosition + Vector3.Up * bob;
-					ambient.GameObject.LocalScale = ambient.BaseScale * (1f + wave * 0.035f);
-					break;
-				case AmbientVenueRole.Light:
-					ambient.GameObject.LocalScale = ambient.BaseScale * (1f + wave * 0.18f + hottest * 0.12f);
-					break;
-				case AmbientVenueRole.Sign:
-					ambient.GameObject.LocalScale = new Vector3( ambient.BaseScale.x * (1f + hottest * 0.08f), ambient.BaseScale.y, ambient.BaseScale.z * (1f + wave * 0.25f) );
-					break;
-				case AmbientVenueRole.Celebration:
-					var pulse = celebration ? 0.45f + wave * 0.55f : hottest * 0.35f;
-					ambient.GameObject.LocalScale = ambient.BaseScale * (1f + pulse * 0.45f);
-					break;
-			}
+			frame.Enabled = visible;
+			if ( visible && i < station.ClaimFrameBaseScales.Length )
+				frame.LocalScale = station.ClaimFrameBaseScales[i] * scaleMultiplier;
 
-			if ( ambient.Renderer.IsValid() )
-			{
-				var intensity = ambient.Role == AmbientVenueRole.Crowd ? hottest * 0.25f : 0.25f + wave * 0.25f + hottest * 0.35f;
-				ambient.Renderer.Tint = Color.Lerp( ambient.BaseColor, modeAccent, intensity.Clamp( 0f, celebration ? 0.85f : 0.55f ) );
-			}
+			if ( i < station.ClaimFrameRenderers.Length && station.ClaimFrameRenderers[i].IsValid() )
+				station.ClaimFrameRenderers[i].Tint = color;
 		}
 	}
 
-	private string GetRankText( PlayerScore player )
+	public string GetWallScreenTitle()
 	{
+		return "TAPPER ARENA";
+	}
+
+	public string GetWallScreenHeadline()
+	{
+		return GetEventHeadlineText();
+	}
+
+	public string GetWallScreenModeText()
+	{
+		var settings = GetModeSettings();
+		return $"{settings.Label}  |  ROUND {TournamentRound}/{Math.Max( TournamentRounds, 1 )}  |  {GetDisplayActiveCount()} CLAIMED  |  {GetVenueWorldLabel()}";
+	}
+
+	public string GetWallScreenLeaderboardText()
+	{
+		return BuildLeaderboardText();
+	}
+
+	public string GetWallScreenHtmlDebugText()
+	{
+		return "HTML";
+	}
+
+	public TapperWallStationDisplay[] GetWallScreenStationRows()
+	{
+		return Stations
+			.OrderBy( x => x.Index )
+			.Select( station =>
+			{
+				var player = Players.FirstOrDefault( x => x.StationIndex == station.Index );
+				var name = player?.Name ?? "OPEN";
+				var status = GetStationStatus( station, player );
+				var score = player?.Score ?? 0;
+				var speed = player?.LastSpeed ?? 0f;
+				var meta = $"{score} taps  {speed:0.0}/s";
+				var cssClass = GetWallStationRowCssClass( station, player );
+				return new TapperWallStationDisplay( $"S{station.Index + 1}", name, status, meta, cssClass );
+			} )
+			.ToArray();
+	}
+
+	private void UpdateWallFallbackText()
+	{
+		if ( WallFallbackText is null )
+			return;
+
+		SetText( WallFallbackText.Title, GetWallScreenTitle() );
+		SetText( WallFallbackText.Debug, "FALLBACK" );
+		SetText( WallFallbackText.Headline, GetWallScreenHeadline() );
+		SetText( WallFallbackText.Mode, GetWallScreenModeText() );
+		SetText( WallFallbackText.Leaderboard, GetWallScreenLeaderboardText() );
+		SetText( WallFallbackText.Stations, BuildWallFallbackStationText() );
+	}
+
+	private string BuildWallFallbackStationText()
+	{
+		var rows = GetWallScreenStationRows();
+		if ( rows.Length == 0 )
+			return "NO STATIONS";
+
+		return string.Join( "\n", rows.Select( row => $"{row.Station}  {row.Name}  {row.Status}  {row.Meta}" ) );
+	}
+
+	private string GetWallStationRowCssClass( TapperStation station, PlayerScore player )
+	{
+		if ( State is RoundState.Results or RoundState.Intermission && station.Index == LastWinnerStation )
+			return "winner";
+
+		if ( station.Index == GetLocalStationIndex() )
+			return "local";
+
+		if ( player?.Ready == true )
+			return "ready";
+
 		if ( player is null )
-			return "RANK\nEMPTY";
+			return "open";
 
-		if ( State is RoundState.Results or RoundState.Intermission && player.StationIndex == LastWinnerStation )
-			return "RANK\nWINNER";
-
-		if ( State != RoundState.Results )
-			return player.Heat > 0.75f ? "RANK\nON FIRE" : "RANK\nREADY";
-
-		return $"RANK\n{GetRoundRating( player )}";
+		return "claimed";
 	}
 
 	private string GetEventHeadlineText()
@@ -298,20 +259,6 @@ public sealed partial class PhysicalFastestTapperGame
 			return "CONSTRUCT";
 
 		return UseConstructWorld ? "CONSTRUCT FALLBACK" : "GENERATED VENUE";
-	}
-
-	private string GetScoreText( PlayerScore player )
-	{
-		if ( player is null )
-			return "0";
-
-		if ( State is RoundState.Results or RoundState.Intermission )
-		{
-			player.BestScoreByMode.TryGetValue( GameMode, out var modeBest );
-			return $"{player.Score}\nBEST {modeBest}";
-		}
-
-		return $"{player.Score}";
 	}
 
 	private string GetStationStatus( TapperStation station, PlayerScore player )
@@ -376,30 +323,6 @@ public sealed partial class PhysicalFastestTapperGame
 		return StationCallout.None;
 	}
 
-	private string BuildStationSummaryText( PlayerScore player )
-	{
-		if ( player is null )
-			return "OPEN";
-
-		player.BestScoreByMode.TryGetValue( GameMode, out var modeBest );
-		return $"{player.LastRoundScore}\n+{player.LastRoundPoints} pts\nBEST {modeBest}";
-	}
-
-	private string GetRoundRating( PlayerScore player )
-	{
-		if ( player is null )
-			return "EMPTY";
-
-		return player.LastRoundScore switch
-		{
-			>= 90 => "LEGEND",
-			>= 70 => "S-TIER",
-			>= 50 => "HYPER",
-			>= 30 => "FAST",
-			_ => "WARMUP"
-		};
-	}
-
 	private Color GetModeAccentColor()
 	{
 		return GameMode switch
@@ -409,33 +332,6 @@ public sealed partial class PhysicalFastestTapperGame
 			TapperGameMode.Combo => new Color( 1f, 0.78f, 0.24f, 1f ),
 			_ => ReadyStationColor
 		};
-	}
-
-	private void UpdateSparkVisuals( TapperStation station, float heat )
-	{
-		if ( station.Sparks is null )
-			return;
-
-		for ( var i = 0; i < station.Sparks.Length; i++ )
-		{
-			var spark = station.Sparks[i];
-			if ( !spark.IsValid() )
-				continue;
-
-			var phase = RealTime.Now * (1.8f + i * 0.12f) + i * 0.9f;
-			var flicker = (MathF.Sin( phase * 4f ) + 1f) * 0.5f;
-			var intensity = (heat * 0.85f + station.FinishFlash * 0.45f) * flicker;
-			var angle = phase + MathF.PI * 2f * i / station.Sparks.Length;
-			var radius = 92f + heat * 34f;
-
-			spark.LocalPosition = station.Origin + new Vector3( MathF.Cos( angle ) * radius, MathF.Sin( angle ) * radius, 112f + flicker * 32f );
-			spark.LocalScale = Vector3.One * (0.08f + intensity * 0.18f);
-			spark.Enabled = intensity > 0.08f;
-
-			var renderer = spark.GetComponent<ModelRenderer>();
-			if ( renderer.IsValid() )
-				renderer.Tint = Color.Lerp( new Color( 0.2f, 0.75f, 1f, 0.9f ), HotButtonColor, intensity );
-		}
 	}
 
 }

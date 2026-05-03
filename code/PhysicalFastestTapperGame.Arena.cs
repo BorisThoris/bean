@@ -1,43 +1,168 @@
 using Sandbox;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
 public sealed partial class PhysicalFastestTapperGame
 {
+	private const string QuaterniusModelRoot = "models/quaternius/modular_sci_fi/";
+	private const string ArenaFloorModel = QuaterniusModelRoot + "platform_metal.vmdl";
+	private const string StationPedestalModel = QuaterniusModelRoot + "platform_simple.vmdl";
+	private const string TapperButtonModel = QuaterniusModelRoot + "prop_barrel_large.vmdl";
+	private const string StationBarTrackModel = QuaterniusModelRoot + "decal_line_straight.vmdl";
+	private const string StationBarFillModel = QuaterniusModelRoot + "decal_line_straight.vmdl";
+	private const string WallPanelModel = QuaterniusModelRoot + "wallband_straight.vmdl";
+	private const float DevLayoutUnitSize = 50f;
+	private const float ArcadeTileSize = 260f;
+	private const float ArcadeWallBaySize = 300f;
+
+	private readonly Dictionary<string, ModelMetrics> ModelMetricsByPath = new();
+	private RuntimeRoomLayout CurrentRoomLayout = RuntimeRoomLayoutMath.Build( 4 );
+	private int CurrentGeneratedStationCount = -1;
+
+	private enum ModelPlacementAnchor
+	{
+		Center,
+		Floor,
+		Ceiling
+	}
+
+	private readonly struct ModelMetrics
+	{
+		public readonly Model Model;
+		public readonly Vector3 Size;
+		public readonly Vector3 Center;
+
+		public ModelMetrics( Model model, Vector3 size, Vector3 center )
+		{
+			Model = model;
+			Size = size;
+			Center = center;
+		}
+	}
+
 	private void EnsureArena()
+	{
+		RebuildArenaForStationCapacity( GetDesiredStationCapacity() );
+	}
+
+	private void RebuildArenaForStationCapacity( int stationCapacity )
 	{
 		Stations.Clear();
 
 		var stage = GetVenueStageOrigin();
+		var layout = BuildArenaLayout( stationCapacity );
+		CurrentGeneratedStationCount = layout.StationCount;
+		ClearGeneratedArcadeDressing();
 		LogConstructDiagnostics( "OnStart.EnsureArena", VenueMapLoaded, HasVenueSceneMap() );
-		Log.Info( $"[TapperConstruct] phase=Stage.Placement origin='{stage}' stations={Math.Clamp( StationCount, 1, 8 )} suppressGeneratedAmbient={VenueMapLoaded}" );
-		CreateModelObject( "Arena Floor", stage + new Vector3( 0, 0, 8f ), VenueMapLoaded ? new Vector3( 24f, 18f, 0.34f ) : new Vector3( 46f, 46f, 0.42f ), "models/dev/box.vmdl", StageColor, false, false );
-		CreateModelObject( "Leaderboard Tower", stage + new Vector3( 260f, 0, 265f ), new Vector3( 0.3f, 10f, 4.2f ), "models/dev/box.vmdl", new Color( 0.07f, 0.085f, 0.12f, 1f ), false, false );
-		ArenaKeyGlow = CreateModelObject( "Arena Key Glow", stage + new Vector3( 246f, 0, 500f ), new Vector3( 18f, 0.2f, 2.8f ), "models/dev/box.vmdl", new Color( 0.08f, 0.12f, 0.18f, 1f ), false, false );
-		ArenaKeyGlowRenderer = ArenaKeyGlow.GetComponent<ModelRenderer>();
+		Log.Info( $"[TapperConstruct] phase=Stage.Placement origin='{stage}' stations={layout.StationCount} stationSpanY={layout.StationSpanY} floor='{layout.FloorWidth}x{layout.FloorDepth}' suppressGeneratedAmbient={VenueMapLoaded}" );
+		CreateArcadeFloor( stage, layout );
 		EnsureVenueWorld();
+		CreateArenaWallScreen( stage, layout );
 
-		TitleText = CreateTextObject( "Arena Title Text", stage + new Vector3( 238f, -360f, 438f ), 0.72f );
-		TimerText = CreateTextObject( "Arena Timer Text", stage + new Vector3( 240f, -465f, 354f ), 0.72f );
-		ModeText = CreateTextObject( "Arena Mode Text", stage + new Vector3( 240f, -220f, 354f ), 0.52f );
-		LeaderboardText = CreateTextObject( "Arena Leaderboard Text", stage + new Vector3( 242f, -350f, 262f ), 0.42f );
-
-		var count = Math.Clamp( StationCount, 1, 8 );
-		var spacing = 360f;
-		var startY = -(count - 1) * spacing * 0.5f;
-
-		for ( var i = 0; i < count; i++ )
+		for ( var i = 0; i < layout.StationCount; i++ )
 		{
-			var origin = stage + new Vector3( 0f, startY + i * spacing, 0f );
+			var origin = stage + new Vector3( 0f, layout.StationY( i ), 0f );
 			Stations.Add( CreateStation( i, origin ) );
+		}
+
+		DestroyUnusedStations( layout.StationCount );
+	}
+
+	private void ClearGeneratedArcadeDressing()
+	{
+		foreach ( var prefix in new[] { "Arena Floor", "Arena Lane Strip", "Arena Key Glow", "Arena Wall Screen", "Arena Wall Fallback", "Arena Title Text", "Arena Timer Text", "Arena Mode Text", "Arena Leaderboard Text", "Arena Wall Station Row", "Leaderboard Tower", "Venue Wall Bay", "Venue Ceiling Bay", "Venue Arcade Cabinet", "Venue Accent Column", "Venue Corner Glow", "Venue Office", "Venue Backdrop", "Venue High Sky", "Venue Asset", "Venue Speaker Stack", "Venue Light Rig", "Venue Header", "Venue Overhead", "Venue Left Back Wall", "Venue Right Back Wall", "Venue Podium", "Construct Tapper", "Arcade Key", "Arcade Warm", "Arcade Board", "Arcade Station", "Station Arcade", "Station 0 Speed Spark", "Station 1 Speed Spark", "Station 2 Speed Spark", "Station 3 Speed Spark", "Station 4 Speed Spark", "Station 5 Speed Spark", "Station 6 Speed Spark", "Station 7 Speed Spark" } )
+		{
+			foreach ( var gameObject in Scene.GetAllObjects( true ).Where( x => x.IsValid() && x.Name.StartsWith( prefix ) ).ToArray() )
+				gameObject.Destroy();
+		}
+	}
+
+	private void CreateArcadeFloor( Vector3 stage, RuntimeRoomLayout layout )
+	{
+		var xCount = Math.Max( 5, (int)MathF.Ceiling( layout.FloorWidth / ArcadeTileSize ) );
+		var yCount = Math.Max( 5, (int)MathF.Ceiling( layout.FloorDepth / ArcadeTileSize ) );
+		var startX = -layout.FloorWidth * 0.5f + ArcadeTileSize * 0.5f;
+		var startY = -layout.FloorDepth * 0.5f + ArcadeTileSize * 0.5f;
+
+		for ( var x = 0; x < xCount; x++ )
+		{
+			for ( var y = 0; y < yCount; y++ )
+			{
+				CreateModelObjectWorld( $"Arena Floor Tile {x:00}-{y:00}", stage + new Vector3( startX + x * ArcadeTileSize, startY + y * ArcadeTileSize, 0f ), new Vector3( ArcadeTileSize - 10f, ArcadeTileSize - 10f, layout.FloorThickness ), ArenaFloorModel, new Color( 0.16f, 0.175f, 0.19f, 1f ), false, true, ModelPlacementAnchor.Floor );
+			}
+		}
+
+	}
+
+	private void CreateArcadeWallBays( RuntimeRoomLayout layout )
+	{
+		var wallCenterZ = layout.WallHeight * 0.5f;
+		var roomCenterX = (layout.RearWallX - layout.FloorWidth * 0.32f) * 0.5f;
+		var rearCount = Math.Max( 6, (int)MathF.Ceiling( layout.FloorDepth / ArcadeWallBaySize ) );
+		var rearStep = layout.FloorDepth / rearCount;
+
+		for ( var i = 0; i < rearCount; i++ )
+		{
+			var y = layout.LeftWallY + rearStep * (i + 0.5f);
+			CreateFallbackModelObjectWorld( $"Venue Wall Bay Rear {i:00}", new Vector3( layout.RearWallX, y, wallCenterZ ), new Vector3( 42f, rearStep - 18f, layout.WallHeight * 0.92f ), WallPanelModel, VenueWallColor, false, true );
+		}
+
+		var sideCount = Math.Max( 5, (int)MathF.Ceiling( layout.FloorWidth * 0.82f / ArcadeWallBaySize ) );
+		var sideStartX = roomCenterX - layout.FloorWidth * 0.41f;
+		var sideStep = layout.FloorWidth * 0.82f / sideCount;
+		for ( var i = 0; i < sideCount; i++ )
+		{
+			var x = sideStartX + sideStep * (i + 0.5f);
+			CreateFallbackModelObjectWorld( $"Venue Wall Bay Left {i:00}", new Vector3( x, layout.LeftWallY, wallCenterZ ), new Vector3( sideStep - 18f, 42f, layout.WallHeight * 0.9f ), WallPanelModel, VenueWallColor, false, true );
+			CreateFallbackModelObjectWorld( $"Venue Wall Bay Right {i:00}", new Vector3( x, layout.RightWallY, wallCenterZ ), new Vector3( sideStep - 18f, 42f, layout.WallHeight * 0.9f ), WallPanelModel, VenueWallColor, false, true );
+		}
+	}
+
+	private RuntimeRoomLayout BuildArenaLayout( int stationCapacity )
+	{
+		CurrentRoomLayout = RuntimeRoomLayoutMath.Build( stationCapacity );
+		return CurrentRoomLayout;
+	}
+
+	private int GetDesiredStationCapacity()
+	{
+		return RuntimeRoomLayoutMath.ResolveStationCapacity( StationCount, Players.Count );
+	}
+
+	private void EnsureStationCapacityForLobby()
+	{
+		if ( State is RoundState.Countdown or RoundState.Playing )
+			return;
+
+		var desired = GetDesiredStationCapacity();
+		if ( desired == CurrentGeneratedStationCount )
+			return;
+
+		RebuildArenaForStationCapacity( desired );
+	}
+
+	private void DestroyUnusedStations( int activeStationCount )
+	{
+		for ( var stationIndex = activeStationCount; stationIndex < 8; stationIndex++ )
+		{
+			foreach ( var gameObject in Scene.Directory.FindByName( $"Station {stationIndex} Root" ).ToArray() )
+			{
+				if ( gameObject.IsValid() )
+					gameObject.Destroy();
+			}
+
+			var prefix = $"Station {stationIndex} ";
+			foreach ( var gameObject in Scene.GetAllObjects( true ).Where( x => x.IsValid() && x.Name.StartsWith( prefix ) ).ToArray() )
+				gameObject.Destroy();
 		}
 	}
 
 	private Vector3 GetVenueStageOrigin()
 	{
-		return VenueMapLoaded ? new Vector3( 0f, -900f, 32f ) : Vector3.Zero;
+		return Vector3.Zero;
 	}
 
 	private async Task LoadVenueMap()
@@ -138,58 +263,55 @@ public sealed partial class PhysicalFastestTapperGame
 			Root = FindOrCreate( $"Station {index} Root" )
 		};
 
-		station.FloorMarker = CreateModelObject( $"Station {index} Floor Marker", origin + new Vector3( 0f, 0f, 6f ), new Vector3( 4.8f, 4.8f, 0.05f ), "models/dev/box.vmdl", OpenStationColor, false, false );
-		station.FloorMarkerRenderer = station.FloorMarker.GetComponent<ModelRenderer>();
-		station.WinnerGlow = CreateModelObject( $"Station {index} Winner Glow", origin + new Vector3( 0f, 0f, 10f ), new Vector3( 2.6f, 2.6f, 0.08f ), "models/dev/box.vmdl", new Color( 0.04f, 0.05f, 0.06f, 1f ), false, false );
-		station.WinnerGlowRenderer = station.WinnerGlow.GetComponent<ModelRenderer>();
-		station.FocusRing = CreateModelObject( $"Station {index} Focus Ring", origin + new Vector3( 0f, 0f, 13f ), new Vector3( 3.4f, 3.4f, 0.04f ), "models/dev/box.vmdl", new Color( 0.08f, 0.16f, 0.19f, 1f ), false, false );
-		station.FocusRingRenderer = station.FocusRing.GetComponent<ModelRenderer>();
-
-		CreateModelObject( $"Station {index} Panel", origin + new Vector3( 42f, 86f, 236f ), new Vector3( 6.2f, 0.18f, 2.05f ), "models/dev/box.vmdl", PanelColor, false, false );
 		DestroyLegacyStationAvatarObjects( index );
-		CreateModelObject( $"Station {index} Pedestal", origin + new Vector3( 0f, 0f, 34f ), new Vector3( 4.4f, 4.4f, 0.58f ), "models/dev/box.vmdl", new Color( 0.15f, 0.18f, 0.24f, 1f ), false, true );
-		station.ReadyLight = CreateModelObject( $"Station {index} Ready Light", origin + new Vector3( -116f, 208f, 330f ), new Vector3( 0.45f, 0.45f, 0.08f ), "models/dev/sphere.vmdl", OpenStationColor, false, false );
-		station.ReadyLightRenderer = station.ReadyLight.GetComponent<ModelRenderer>();
+		CreateModelObjectWorld( $"Station {index} Pedestal", origin + new Vector3( 0f, 0f, 0f ), new Vector3( 360f, 280f, 8f ), StationPedestalModel, new Color( 0.22f, 0.24f, 0.27f, 1f ), false, true, ModelPlacementAnchor.Floor );
+		CreateClaimFrame( station );
 
-		station.Button = CreateModelObject( $"Station {index} Physical Tap Button", origin + new Vector3( 0f, 0f, 84f ), new Vector3( 2.05f, 2.05f, 0.42f ), "models/dev/box.vmdl", IdleButtonColor, false, true );
+		station.Button = CreateModelObjectWorld( $"Station {index} Physical Tap Button", origin + new Vector3( 0f, -24f, 8f ), new Vector3( 86f, 86f, 48f ), TapperButtonModel, IdleButtonColor, false, true, ModelPlacementAnchor.Floor );
 		var tapButton = station.Button.Components.GetOrCreate<PhysicalTapButton>();
 		tapButton.StationIndex = index;
 		station.ButtonRenderer = station.Button.GetComponent<ModelRenderer>();
 
-		station.ButtonTop = CreateModelObject( $"Station {index} Button Top", origin + new Vector3( 0f, 0f, 114f ), new Vector3( 1.55f, 1.55f, 0.1f ), "models/dev/box.vmdl", new Color( 1f, 0.22f, 0.16f, 1f ), false, false );
-		station.ButtonTopRenderer = station.ButtonTop.GetComponent<ModelRenderer>();
-		station.ButtonHitbox = CreateButtonHitbox( index, origin + new Vector3( 0f, 0f, 128f ) );
+		station.ButtonHitbox = CreateButtonHitbox( index, origin + new Vector3( 0f, -24f, 56f ) );
 
-		CreateModelObject( $"Station {index} Progress Track", origin + new Vector3( 34f, 86f, 174f ), new Vector3( 4.9f, 0.18f, 0.11f ), "models/dev/box.vmdl", new Color( 0.2f, 0.23f, 0.29f, 1f ), false, false );
-		station.ProgressFill = CreateModelObject( $"Station {index} Progress Fill", origin + new Vector3( 34f, 86f, 178f ), new Vector3( 4.9f, 0.22f, 0.12f ), "models/dev/box.vmdl", new Color( 0.2f, 0.82f, 1f, 1f ), false, false );
-		CreateModelObject( $"Station {index} Heat Track", origin + new Vector3( 34f, 86f, 154f ), new Vector3( 4.9f, 0.18f, 0.11f ), "models/dev/box.vmdl", new Color( 0.2f, 0.23f, 0.29f, 1f ), false, false );
-		station.HeatFill = CreateModelObject( $"Station {index} Heat Fill", origin + new Vector3( 34f, 86f, 158f ), new Vector3( 4.9f, 0.22f, 0.12f ), "models/dev/box.vmdl", new Color( 0.15f, 0.65f, 1f, 1f ), false, false );
+		CreateModelObject( $"Station {index} Progress Track", origin + new Vector3( 34f, 112f, 118f ), new Vector3( 4.9f, 0.18f, 0.11f ), StationBarTrackModel, new Color( 0.2f, 0.23f, 0.29f, 1f ), false, false );
+		station.ProgressFill = CreateModelObject( $"Station {index} Progress Fill", origin + new Vector3( 34f, 112f, 122f ), new Vector3( 4.9f, 0.22f, 0.12f ), StationBarFillModel, new Color( 0.2f, 0.82f, 1f, 1f ), false, false );
+		CreateModelObject( $"Station {index} Heat Track", origin + new Vector3( 34f, 112f, 98f ), new Vector3( 4.9f, 0.18f, 0.11f ), StationBarTrackModel, new Color( 0.2f, 0.23f, 0.29f, 1f ), false, false );
+		station.HeatFill = CreateModelObject( $"Station {index} Heat Fill", origin + new Vector3( 34f, 112f, 102f ), new Vector3( 4.9f, 0.22f, 0.12f ), StationBarFillModel, new Color( 0.15f, 0.65f, 1f, 1f ), false, false );
 		station.HeatFillRenderer = station.HeatFill.GetComponent<ModelRenderer>();
-		CreateModelObject( $"Station {index} Race Trace Track", origin + new Vector3( 34f, 86f, 134f ), new Vector3( 4.9f, 0.16f, 0.08f ), "models/dev/box.vmdl", new Color( 0.16f, 0.17f, 0.21f, 1f ), false, false );
-		station.RaceTraceFill = CreateModelObject( $"Station {index} Race Trace Fill", origin + new Vector3( 34f, 86f, 138f ), new Vector3( 4.9f, 0.2f, 0.09f ), "models/dev/box.vmdl", new Color( 1f, 0.84f, 0.18f, 1f ), false, false );
-		station.RaceTraceFillRenderer = station.RaceTraceFill.GetComponent<ModelRenderer>();
-
-		station.StationNumberText = CreateTextObject( $"Station {index} Number Text", origin + new Vector3( -122f, 230f, 342f ), 0.36f );
-		station.NameText = CreateTextObject( $"Station {index} Name Text", origin + new Vector3( -28f, 230f, 326f ), 0.46f );
-		station.ScoreText = CreateTextObject( $"Station {index} Score Text", origin + new Vector3( 26f, 86f, 268f ), 0.76f );
-		station.SpeedText = CreateTextObject( $"Station {index} Speed Text", origin + new Vector3( -90f, 86f, 262f ), 0.52f );
-		station.ComboText = CreateTextObject( $"Station {index} Combo Text", origin + new Vector3( 118f, 86f, 262f ), 0.52f );
-		station.RankText = CreateTextObject( $"Station {index} Rank Text", origin + new Vector3( -82f, 226f, 246f ), 0.48f );
-		station.StatusText = CreateTextObject( $"Station {index} Status Text", origin + new Vector3( -16f, 8f, 142f ), 0.48f );
 
 		station.ButtonBaseScale = station.Button.LocalScale;
-		station.ButtonTopBasePosition = station.ButtonTop.LocalPosition;
 		station.ProgressBaseScale = station.ProgressFill.LocalScale;
 		station.ProgressBasePosition = station.ProgressFill.LocalPosition;
 		station.HeatBaseScale = station.HeatFill.LocalScale;
 		station.HeatBasePosition = station.HeatFill.LocalPosition;
-		station.Sparks = CreateSparkObjects( index, origin );
+		station.BarModelHalfExtentX = GetModelMetrics( StationBarFillModel ).Size.x * 0.5f;
 		return station;
+	}
+
+	private void CreateClaimFrame( TapperStation station )
+	{
+		var origin = station.Origin;
+		var z = 13f;
+		var halfX = 196f;
+		var halfY = 156f;
+		var longSize = new Vector3( 392f, 10f, 6f );
+		var shortSize = new Vector3( 312f, 10f, 6f );
+
+		station.ClaimFrame = new[]
+		{
+			CreateModelObjectWorld( $"Station {station.Index} Claim Frame Front", origin + new Vector3( 0f, -halfY, z ), longSize, StationBarFillModel, ClaimFrameIdleColor, false, false ),
+			CreateModelObjectWorld( $"Station {station.Index} Claim Frame Back", origin + new Vector3( 0f, halfY, z ), longSize, StationBarFillModel, ClaimFrameIdleColor, false, false ),
+			CreateModelObjectWorld( $"Station {station.Index} Claim Frame Left", origin + new Vector3( -halfX, 0f, z ), shortSize, StationBarFillModel, ClaimFrameIdleColor, false, false, ModelPlacementAnchor.Center, Rotation.FromYaw( 90f ) ),
+			CreateModelObjectWorld( $"Station {station.Index} Claim Frame Right", origin + new Vector3( halfX, 0f, z ), shortSize, StationBarFillModel, ClaimFrameIdleColor, false, false, ModelPlacementAnchor.Center, Rotation.FromYaw( 90f ) )
+		};
+		station.ClaimFrameRenderers = station.ClaimFrame.Select( x => x.GetComponent<ModelRenderer>() ).ToArray();
+		station.ClaimFrameBaseScales = station.ClaimFrame.Select( x => x.LocalScale ).ToArray();
 	}
 
 	private void DestroyLegacyStationAvatarObjects( int stationIndex )
 	{
-		foreach ( var name in new[] { $"Station {stationIndex} Avatar Panel", $"Station {stationIndex} Avatar Head", $"Station {stationIndex} Winner Crown" } )
+		foreach ( var name in new[] { $"Station {stationIndex} Avatar Panel", $"Station {stationIndex} Avatar Head", $"Station {stationIndex} Winner Crown", $"Station {stationIndex} Number Text", $"Station {stationIndex} Name Text", $"Station {stationIndex} Status Text" } )
 		{
 			foreach ( var gameObject in Scene.Directory.FindByName( name ).ToArray() )
 			{
@@ -218,171 +340,21 @@ public sealed partial class PhysicalFastestTapperGame
 
 	private void EnsureVenueWorld()
 	{
-		AmbientVenueObjects.Clear();
 		var fallbackRoot = EnsureVenueFallbackRoot();
 		fallbackRoot.Enabled = true;
 
-		if ( VenueMapLoaded )
-		{
-			CreateConstructStageDressing();
-			CreateVenuePodium();
-			return;
-		}
-
 		CreateVenueBackdrop();
-		CreateVenueBoundaries();
-		CreateVenueTrussAndSignage();
-		CreateVenueProps();
-		CreateVenueSpectators();
-		CreateVenuePodium();
-	}
-
-	private void CreateConstructStageDressing()
-	{
-		var stage = GetVenueStageOrigin();
-		CreateModelObject( "Construct Tapper Stage Back Rail", stage + new Vector3( 160f, 0f, 44f ), new Vector3( 0.22f, 9f, 0.24f ), "models/dev/box.vmdl", VenueTrussColor, false, false );
-		CreateModelObject( "Construct Tapper Stage Left Rail", stage + new Vector3( -120f, -650f, 32f ), new Vector3( 5.6f, 0.12f, 0.2f ), "models/dev/box.vmdl", VenueTrussColor, false, false );
-		CreateModelObject( "Construct Tapper Stage Right Rail", stage + new Vector3( -120f, 650f, 32f ), new Vector3( 5.6f, 0.12f, 0.2f ), "models/dev/box.vmdl", VenueTrussColor, false, false );
-		CreateModelObject( "Construct Tapper Anchor Glow", stage + new Vector3( 52f, 0f, 18f ), new Vector3( 6.8f, 5.6f, 0.04f ), "models/dev/box.vmdl", new Color( 0.04f, 0.16f, 0.2f, 1f ), false, false );
-		CreateModelObject( "Construct Tapper Header Backplate", stage + new Vector3( 168f, 0f, 378f ), new Vector3( 0.22f, 4.8f, 0.56f ), "models/dev/box.vmdl", new Color( 0.035f, 0.05f, 0.075f, 1f ), false, false );
-
-		var sign = CreateTextObject( "Construct Tapper Header Text", stage + new Vector3( 160f, -130f, 410f ), 0.58f );
-		SetText( sign, "ULTIMATE TAPPER" );
 	}
 
 	private void CreateVenueBackdrop()
 	{
 		CreateOfficeShell();
-		CreateFallbackModelObject( "Venue Backdrop Wall", new Vector3( 520f, 0f, 310f ), new Vector3( 0.45f, 28f, 5.8f ), "models/dev/box.vmdl", VenueBackdropColor, false, false );
-		CreateFallbackModelObject( "Venue High Sky Panel", new Vector3( 390f, 0f, 690f ), new Vector3( 20f, 28f, 0.45f ), "models/dev/box.vmdl", new Color( 0.025f, 0.035f, 0.055f, 1f ), false, false );
-		CreateFallbackModelObject( "Venue Horizon Glow", new Vector3( 506f, 0f, 478f ), new Vector3( 0.16f, 20f, 0.45f ), "models/dev/box.vmdl", new Color( 0.06f, 0.18f, 0.23f, 1f ), false, false );
 	}
 
 	private void CreateOfficeShell()
 	{
-		CreateFallbackModelObject( "Venue Office Rear Wall", new Vector3( 650f, 0f, 320f ), new Vector3( 0.55f, 38f, 7.2f ), "models/dev/box.vmdl", new Color( 0.105f, 0.115f, 0.125f, 1f ), false, false );
-		CreateFallbackModelObject( "Venue Office Left Wall", new Vector3( 70f, -2050f, 300f ), new Vector3( 27f, 0.55f, 6.4f ), "models/dev/box.vmdl", new Color( 0.095f, 0.105f, 0.115f, 1f ), false, false );
-		CreateFallbackModelObject( "Venue Office Right Wall", new Vector3( 70f, 2050f, 300f ), new Vector3( 27f, 0.55f, 6.4f ), "models/dev/box.vmdl", new Color( 0.095f, 0.105f, 0.115f, 1f ), false, false );
-		CreateFallbackModelObject( "Venue Office Drop Ceiling", new Vector3( 0f, 0f, 690f ), new Vector3( 30f, 38f, 0.24f ), "models/dev/box.vmdl", new Color( 0.17f, 0.18f, 0.18f, 1f ), false, false );
-
-		for ( var i = 0; i < 7; i++ )
-		{
-			var y = -1260f + i * 420f;
-			CreateFallbackModelObject( $"Venue Office Fluorescent Panel {i:00}", new Vector3( -220f, y, 674f ), new Vector3( 2.6f, 0.85f, 0.08f ), "models/dev/box.vmdl", new Color( 0.64f, 0.9f, 1f, 1f ), false, false );
-			CreateFallbackModelObject( $"Venue Office Ceiling Tile Seam {i:00}", new Vector3( 25f, y + 210f, 676f ), new Vector3( 28f, 0.035f, 0.05f ), "models/dev/box.vmdl", new Color( 0.045f, 0.05f, 0.055f, 1f ), false, false );
-		}
-
-		for ( var i = 0; i < 6; i++ )
-		{
-			var x = -560f + i * 220f;
-			CreateFallbackModelObject( $"Venue Office Rear Window {i:00}", new Vector3( 642f, -1040f + i * 416f, 375f ), new Vector3( 0.08f, 1.35f, 1.25f ), "models/dev/box.vmdl", new Color( 0.035f, 0.13f, 0.19f, 1f ), false, false );
-			CreateFallbackModelObject( $"Venue Office Floor Lane Line {i:00}", new Vector3( x, 0f, 9f ), new Vector3( 0.06f, 28f, 0.045f ), "models/dev/box.vmdl", new Color( 0.18f, 0.2f, 0.22f, 1f ), false, false );
-		}
-	}
-
-	private void CreateVenueBoundaries()
-	{
-		for ( var i = 0; i < 5; i++ )
-		{
-			var x = -600f + i * 300f;
-			CreateFallbackModelObject( $"Venue Asset Left Rail {i:00}", new Vector3( x, -1650f, 18f ), new Vector3( 2.8f, 0.16f, 0.22f ), "models/dev/box.vmdl", VenueTrussColor, false, false );
-			CreateFallbackModelObject( $"Venue Asset Right Rail {i:00}", new Vector3( x, 1650f, 18f ), new Vector3( 2.8f, 0.16f, 0.22f ), "models/dev/box.vmdl", VenueTrussColor, false, false );
-		}
-
-		CreateFallbackModelObject( "Venue Left Back Wall", new Vector3( 300f, -1780f, 190f ), new Vector3( 10f, 0.24f, 2.4f ), "models/dev/box.vmdl", VenueWallColor, false, false );
-		CreateFallbackModelObject( "Venue Right Back Wall", new Vector3( 300f, 1780f, 190f ), new Vector3( 10f, 0.24f, 2.4f ), "models/dev/box.vmdl", VenueWallColor, false, false );
-	}
-
-	private void CreateVenueTrussAndSignage()
-	{
-		CreateModelObject( "Venue Overhead Truss Main", new Vector3( 180f, 0f, 600f ), new Vector3( 11f, 0.22f, 0.22f ), "models/dev/box.vmdl", VenueTrussColor, false, false );
-		CreateModelObject( "Venue Overhead Truss Left", new Vector3( 180f, -1550f, 420f ), new Vector3( 0.22f, 0.22f, 3.6f ), "models/dev/box.vmdl", VenueTrussColor, false, false );
-		CreateModelObject( "Venue Overhead Truss Right", new Vector3( 180f, 1550f, 420f ), new Vector3( 0.22f, 0.22f, 3.6f ), "models/dev/box.vmdl", VenueTrussColor, false, false );
-
-		CreateFallbackModelObject( "Venue Header Sign Backplate", new Vector3( 145f, 0f, 520f ), new Vector3( 4.8f, 0.2f, 0.72f ), "models/dev/box.vmdl", new Color( 0.035f, 0.05f, 0.075f, 1f ), false, false );
-
-		RegisterAmbientVenueObject( CreateModelObject( "Venue Header Sign Glow", new Vector3( 140f, 0f, 524f ), new Vector3( 4.5f, 0.12f, 0.1f ), "models/dev/box.vmdl", VenueSignColor, false, false ), AmbientVenueRole.Sign, 0f, VenueSignColor );
-
-		var sign = CreateTextObject( "Venue Header Sign Text", new Vector3( 145f, 0f, 560f ), 0.78f );
-		SetText( sign, "ULTIMATE TAPPER" );
-	}
-
-	private void CreateVenueProps()
-	{
-		var lightColor = new Color( 0.5f, 0.78f, 0.9f, 1f );
-		RegisterAmbientVenueObject( CreateFallbackModelObject( "Venue Asset Ceiling Light Left", new Vector3( -120f, -900f, 520f ), new Vector3( 1.4f, 0.35f, 0.08f ), "models/dev/box.vmdl", lightColor, false, false ), AmbientVenueRole.Light, 0.2f, lightColor );
-		RegisterAmbientVenueObject( CreateFallbackModelObject( "Venue Asset Ceiling Light Center", new Vector3( -120f, 0f, 540f ), new Vector3( 1.4f, 0.35f, 0.08f ), "models/dev/box.vmdl", lightColor, false, false ), AmbientVenueRole.Light, 1.6f, lightColor );
-		RegisterAmbientVenueObject( CreateFallbackModelObject( "Venue Asset Ceiling Light Right", new Vector3( -120f, 900f, 520f ), new Vector3( 1.4f, 0.35f, 0.08f ), "models/dev/box.vmdl", lightColor, false, false ), AmbientVenueRole.Light, 3.1f, lightColor );
-
-		for ( var side = -1; side <= 1; side += 2 )
-		{
-			var y = side * 1510f;
-			var sign = side < 0 ? "Left" : "Right";
-
-			CreateFallbackModelObject( $"Venue Speaker Stack {side} Base", new Vector3( 210f, y, 86f ), new Vector3( 0.85f, 0.55f, 1.15f ), "models/dev/box.vmdl", VenuePropColor, false, false );
-			CreateFallbackModelObject( $"Venue Speaker Stack {side} Top", new Vector3( 210f, y, 204f ), new Vector3( 0.72f, 0.48f, 0.9f ), "models/dev/box.vmdl", VenuePropColor, false, false );
-			RegisterAmbientVenueObject( CreateFallbackModelObject( $"Venue Light Rig {sign}", new Vector3( -140f, y, 430f ), new Vector3( 0.34f, 0.34f, 0.34f ), "models/dev/sphere.vmdl", new Color( 0.1f, 0.32f, 0.4f, 1f ), false, false ), AmbientVenueRole.Celebration, side < 0 ? 0.75f : 2.25f, new Color( 0.1f, 0.32f, 0.4f, 1f ) );
-			CreateFallbackModelObject( $"Venue Asset {sign} CCTV", new Vector3( 420f, y * 0.86f, 310f ), new Vector3( 0.28f, 0.2f, 0.2f ), "models/dev/box.vmdl", new Color( 0.035f, 0.04f, 0.05f, 1f ), false, false );
-			CreateFallbackModelObject( $"Venue Asset {sign} Fire Extinguisher", new Vector3( 410f, y * 0.72f, 30f ), new Vector3( 0.12f, 0.12f, 0.42f ), "models/dev/box.vmdl", new Color( 0.7f, 0.05f, 0.04f, 1f ), false, false );
-			CreateFallbackModelObject( $"Venue Asset {sign} Ash Bin", new Vector3( 345f, y * 0.62f, 18f ), new Vector3( 0.34f, 0.34f, 0.36f ), "models/dev/box.vmdl", VenuePropColor, false, false );
-		}
-	}
-
-	private void CreateVenueSpectators()
-	{
-		for ( var i = 0; i < 14; i++ )
-		{
-			var y = -1260f + i * 194f;
-			var height = 0.58f + (i % 3) * 0.08f;
-			RegisterAmbientVenueObject( CreateFallbackModelObject( $"Venue Crowd Silhouette {i:00}", new Vector3( 455f, y, 108f + height * 30f ), new Vector3( 0.18f, 0.32f, height ), "models/dev/box.vmdl", new Color( 0.025f, 0.028f, 0.036f, 1f ), false, false ), AmbientVenueRole.Crowd, i * 0.47f, new Color( 0.025f, 0.028f, 0.036f, 1f ) );
-		}
-	}
-
-	private void CreateVenuePodium()
-	{
-		var stage = GetVenueStageOrigin();
-		if ( PodiumPrefab.IsValid() )
-		{
-			var podium = FindOrCreate( "Venue Podium Prefab Instance" );
-			if ( podium.Children.Count == 0 )
-				PodiumPrefab.Clone( stage + new Vector3( 420f, 0f, 42f ) ).SetParent( podium, true );
-			return;
-		}
-
-		CreateFallbackModelObject( "Venue Podium Base", stage + new Vector3( 430f, 0f, 28f ), new Vector3( 2.2f, 3.6f, 0.42f ), "models/dev/box.vmdl", new Color( 0.12f, 0.14f, 0.18f, 1f ), false, false );
-		CreateFallbackModelObject( "Venue Podium Winner Step", stage + new Vector3( 410f, 0f, 68f ), new Vector3( 1.3f, 1.1f, 0.52f ), "models/dev/box.vmdl", new Color( 0.22f, 0.18f, 0.08f, 1f ), false, false );
-		CreateFallbackModelObject( "Venue Podium Left Step", stage + new Vector3( 425f, -170f, 50f ), new Vector3( 1.0f, 0.9f, 0.34f ), "models/dev/box.vmdl", new Color( 0.11f, 0.13f, 0.16f, 1f ), false, false );
-		CreateFallbackModelObject( "Venue Podium Right Step", stage + new Vector3( 425f, 170f, 50f ), new Vector3( 1.0f, 0.9f, 0.34f ), "models/dev/box.vmdl", new Color( 0.11f, 0.13f, 0.16f, 1f ), false, false );
-		RegisterAmbientVenueObject( CreateFallbackModelObject( "Venue Podium Winner Lane", stage + new Vector3( 328f, 0f, 15f ), new Vector3( 2.6f, 0.42f, 0.08f ), "models/dev/box.vmdl", WinnerStationColor, false, false ), AmbientVenueRole.Celebration, 1.25f, WinnerStationColor );
-	}
-
-	private void RegisterAmbientVenueObject( GameObject gameObject, AmbientVenueRole role, float phase, Color baseColor )
-	{
-		if ( !gameObject.IsValid() )
-			return;
-
-		AmbientVenueObjects.Add( new AmbientVenueObject
-		{
-			GameObject = gameObject,
-			Renderer = gameObject.GetComponent<ModelRenderer>(),
-			BasePosition = gameObject.LocalPosition,
-			BaseScale = gameObject.LocalScale,
-			BaseColor = baseColor,
-			Role = role,
-			Phase = phase
-		} );
-	}
-
-	private GameObject[] CreateSparkObjects( int stationIndex, Vector3 origin )
-	{
-		var sparks = new GameObject[10];
-		for ( var i = 0; i < sparks.Length; i++ )
-		{
-			var spark = CreateModelObject( $"Station {stationIndex} Speed Spark {i:00}", origin + new Vector3( 0f, 0f, 120f ), Vector3.One * 0.08f, "models/dev/sphere.vmdl", new Color( 0.2f, 0.75f, 1f, 0.9f ), false, false );
-			spark.Enabled = false;
-			sparks[i] = spark;
-		}
-		return sparks;
+		var layout = CurrentRoomLayout;
+		CreateArcadeWallBays( layout );
 	}
 
 	private GameObject EnsureVenueFallbackRoot()
@@ -395,50 +367,157 @@ public sealed partial class PhysicalFastestTapperGame
 		return root;
 	}
 
-	private GameObject CreateFallbackModelObject( string name, Vector3 position, Vector3 scale, string modelPath, Color tint, bool planeCollider, bool boxCollider )
+	private GameObject CreateFallbackModelObjectWorld( string name, Vector3 position, Vector3 worldSize, string modelPath, Color tint, bool planeCollider, bool boxCollider, ModelPlacementAnchor anchor = ModelPlacementAnchor.Center )
 	{
-		var gameObject = CreateModelObject( name, position, scale, modelPath, tint, planeCollider, boxCollider );
+		var gameObject = CreateModelObjectWorld( name, position, worldSize, modelPath, tint, planeCollider, boxCollider, anchor );
 		gameObject.SetParent( EnsureVenueFallbackRoot(), true );
 		return gameObject;
 	}
 
-	private GameObject CreateModelObject( string name, Vector3 position, Vector3 scale, string modelPath, Color tint, bool planeCollider, bool boxCollider )
+	private GameObject CreateModelObject( string name, Vector3 position, Vector3 layoutSize, string modelPath, Color tint, bool planeCollider, bool boxCollider )
 	{
+		return CreateModelObjectWorld( name, position, LayoutUnitsToWorldSize( layoutSize ), modelPath, tint, planeCollider, boxCollider );
+	}
+
+	private GameObject CreateModelObjectWorld( string name, Vector3 position, Vector3 desiredWorldSize, string modelPath, Color tint, bool planeCollider, bool boxCollider, ModelPlacementAnchor anchor = ModelPlacementAnchor.Center )
+	{
+		return CreateModelObjectWorld( name, position, desiredWorldSize, modelPath, tint, planeCollider, boxCollider, anchor, Rotation.Identity );
+	}
+
+	private GameObject CreateModelObjectWorld( string name, Vector3 position, Vector3 desiredWorldSize, string modelPath, Color tint, bool planeCollider, bool boxCollider, ModelPlacementAnchor anchor, Rotation rotation )
+	{
+		var metrics = GetModelMetrics( modelPath );
+		var scale = ScaleForDesiredWorldSize( metrics.Size, desiredWorldSize );
+		var anchorLocalPosition = GetModelAnchorLocalPosition( metrics, anchor );
+		var anchorOffset = ComponentMultiply( anchorLocalPosition, scale );
 		var gameObject = FindOrCreate( name );
-		gameObject.LocalPosition = position;
+		gameObject.LocalRotation = rotation;
+		gameObject.LocalPosition = position - rotation * anchorOffset;
 		gameObject.LocalScale = scale;
 
 		var renderer = gameObject.Components.GetOrCreate<ModelRenderer>();
-		renderer.Model = Model.Load( modelPath );
+		renderer.Model = metrics.Model;
 		renderer.Tint = tint;
 
 		if ( planeCollider )
 		{
 			var collider = gameObject.Components.GetOrCreate<PlaneCollider>();
-			collider.Scale = new Vector2( 100f, 100f );
+			collider.Scale = new Vector2( metrics.Size.x, metrics.Size.y );
 			collider.Static = true;
 		}
 
 		if ( boxCollider )
 		{
 			var collider = gameObject.Components.GetOrCreate<BoxCollider>();
-			collider.Scale = new Vector3( 50f, 50f, 50f );
+			collider.Scale = metrics.Size;
 			collider.Static = true;
 		}
 
 		return gameObject;
 	}
 
-	private TextRenderer CreateTextObject( string name, Vector3 position, float scale )
+	private void CreateArenaWallScreen( Vector3 stage, RuntimeRoomLayout layout )
+	{
+		var screenLayout = ArenaWallScreenLayoutMath.Build( layout, stage.x, stage.y, stage.z );
+		var screenCenter = new Vector3( screenLayout.ScreenX, screenLayout.ScreenY, screenLayout.ScreenZ );
+		var facing = new Vector3( screenLayout.FacingX, screenLayout.FacingY, screenLayout.FacingZ );
+		var rotation = Rotation.LookAt( facing, Vector3.Up );
+		var displayRotation = Rotation.LookAt( -facing, Vector3.Up );
+		var screen = CreateModelObjectWorld( "Arena Wall Screen", screenCenter, new Vector3( ArenaWallScreenLayoutMath.ScreenModelThickness, screenLayout.ScreenWidth, screenLayout.ScreenHeight ), WallPanelModel, new Color( 0.025f, 0.032f, 0.045f, 1f ), false, false, ModelPlacementAnchor.Center, rotation );
+
+		var uiObject = FindOrCreate( "Arena Wall Screen UI" );
+		uiObject.LocalPosition = new Vector3( screenLayout.UiX, screenLayout.UiY, screenLayout.UiZ );
+		uiObject.LocalRotation = displayRotation;
+		uiObject.LocalScale = Vector3.One * screenLayout.UiScale;
+
+		var worldPanel = uiObject.Components.GetOrCreate<WorldPanel>();
+		worldPanel.InteractionRange = 0f;
+
+		WallScreen = uiObject.Components.GetOrCreate<Sandbox.ui.ArenaWallScreen>();
+		WallScreen.Game = this;
+		CreateArenaWallFallbackText( screenLayout, displayRotation );
+	}
+
+	private void CreateArenaWallFallbackText( ArenaWallScreenLayout screenLayout, Rotation rotation )
+	{
+		var basePosition = new Vector3( screenLayout.UiX + screenLayout.FacingX * 18f, screenLayout.UiY + screenLayout.FacingY * 18f, screenLayout.UiZ + screenLayout.FacingZ * 18f );
+		var right = rotation.Right;
+		var up = rotation.Up;
+
+		WallFallbackText = new ArenaWallFallbackText
+		{
+			Title = CreateWallFallbackTextObject( "Arena Wall Fallback Title", basePosition - right * 430f + up * 210f, rotation, 0.92f, ReadyStationColor ),
+			Debug = CreateWallFallbackTextObject( "Arena Wall Fallback Debug", basePosition + right * 650f + up * 224f, rotation, 0.26f, new Color( 1f, 0.86f, 0.2f, 1f ) ),
+			Headline = CreateWallFallbackTextObject( "Arena Wall Fallback Headline", basePosition - right * 430f + up * 90f, rotation, 1.28f, WinnerStationColor ),
+			Mode = CreateWallFallbackTextObject( "Arena Wall Fallback Mode", basePosition - right * 430f - up * 54f, rotation, 0.52f, Color.White ),
+			Leaderboard = CreateWallFallbackTextObject( "Arena Wall Fallback Leaderboard", basePosition - right * 30f + up * 94f, rotation, 0.48f, Color.White ),
+			Stations = CreateWallFallbackTextObject( "Arena Wall Fallback Stations", basePosition - right * 30f - up * 96f, rotation, 0.42f, Color.White )
+		};
+	}
+
+	private TextRenderer CreateWallFallbackTextObject( string name, Vector3 position, Rotation rotation, float scale, Color color )
 	{
 		var gameObject = FindOrCreate( name );
 		gameObject.LocalPosition = position;
-		gameObject.LocalRotation = Rotation.FromYaw( 35f );
+		gameObject.LocalRotation = rotation;
 		gameObject.LocalScale = Vector3.One;
 
-		var textRenderer = gameObject.Components.GetOrCreate<TextRenderer>();
-		textRenderer.Scale = scale;
-		textRenderer.Color = Color.White;
-		return textRenderer;
+		var renderer = gameObject.Components.GetOrCreate<TextRenderer>();
+		renderer.Scale = scale;
+		renderer.Color = color;
+		return renderer;
 	}
+
+	private static Vector3 GetModelAnchorLocalPosition( ModelMetrics metrics, ModelPlacementAnchor anchor )
+	{
+		return anchor switch
+		{
+			ModelPlacementAnchor.Floor => metrics.Center - new Vector3( 0f, 0f, metrics.Size.z * 0.5f ),
+			ModelPlacementAnchor.Ceiling => metrics.Center + new Vector3( 0f, 0f, metrics.Size.z * 0.5f ),
+			_ => metrics.Center
+		};
+	}
+
+	private ModelMetrics GetModelMetrics( string modelPath )
+	{
+		if ( ModelMetricsByPath.TryGetValue( modelPath, out var cached ) )
+			return cached;
+
+		var model = Model.Load( modelPath );
+		var bounds = model.Bounds;
+		var size = new Vector3(
+			SafeModelAxisSize( bounds.Size.x ),
+			SafeModelAxisSize( bounds.Size.y ),
+			SafeModelAxisSize( bounds.Size.z ) );
+		var metrics = new ModelMetrics( model, size, bounds.Center );
+		ModelMetricsByPath[modelPath] = metrics;
+		return metrics;
+	}
+
+	private static float SafeModelAxisSize( float value )
+	{
+		return MathF.Abs( value ) > 0.001f ? MathF.Abs( value ) : DevLayoutUnitSize;
+	}
+
+	private static Vector3 LayoutUnitsToWorldSize( Vector3 layoutSize )
+	{
+		return new Vector3(
+			MathF.Abs( layoutSize.x ) * DevLayoutUnitSize,
+			MathF.Abs( layoutSize.y ) * DevLayoutUnitSize,
+			MathF.Abs( layoutSize.z ) * DevLayoutUnitSize );
+	}
+
+	private static Vector3 ScaleForDesiredWorldSize( Vector3 modelSize, Vector3 desiredWorldSize )
+	{
+		return new Vector3(
+			desiredWorldSize.x / SafeModelAxisSize( modelSize.x ),
+			desiredWorldSize.y / SafeModelAxisSize( modelSize.y ),
+			desiredWorldSize.z / SafeModelAxisSize( modelSize.z ) );
+	}
+
+	private static Vector3 ComponentMultiply( Vector3 left, Vector3 right )
+	{
+		return new Vector3( left.x * right.x, left.y * right.y, left.z * right.z );
+	}
+
 }

@@ -1,5 +1,6 @@
 using Sandbox;
 using Sandbox.Citizen;
+using Sandbox.Movement;
 using System;
 
 public sealed partial class PhysicalFastestTapperGame
@@ -44,12 +45,50 @@ public sealed partial class PhysicalFastestTapperGame
 		var animation = bean.Components.GetOrCreate<CitizenAnimationHelper>();
 		animation.Target = renderer;
 
+		var body = bean.Components.GetOrCreate<Rigidbody>();
+		body.Gravity = true;
+		body.MotionEnabled = true;
+		body.StartAsleep = false;
+		body.MassOverride = 500f;
+		body.OverrideMassCenter = true;
+		body.MassCenterOverride = Vector3.Up * 36f;
+		body.LinearDamping = 0.1f;
+		body.AngularDamping = 1f;
+		body.Locking = new PhysicsLock
+		{
+			Pitch = true,
+			Yaw = true,
+			Roll = true
+		};
+
 		var collider = bean.Components.GetOrCreate<CapsuleCollider>();
-		collider.Radius = 18f;
+		collider.Radius = 16f;
 		collider.Start = Vector3.Up * 8f;
 		collider.End = Vector3.Up * 76f;
 		collider.Static = false;
-		collider.IsTrigger = true;
+		collider.IsTrigger = false;
+
+		var playerController = bean.Components.GetOrCreate<PlayerController>();
+		playerController.Body = body;
+		playerController.Renderer = renderer;
+		playerController.BodyHeight = 72f;
+		playerController.BodyRadius = 16f;
+		playerController.BodyMass = 500f;
+		playerController.WalkSpeed = 185f;
+		playerController.RunSpeed = 300f;
+		playerController.RunByDefault = false;
+		playerController.AltMoveButton = "run";
+		playerController.UseInputControls = false;
+		playerController.UseLookControls = false;
+		playerController.UseCameraControls = false;
+		playerController.UseAnimatorControls = false;
+		playerController.ThirdPerson = false;
+		playerController.CameraOffset = Vector3.Zero;
+
+		var walkMode = bean.Components.GetOrCreate<MoveModeWalk>();
+		walkMode.StepUpHeight = 18f;
+		walkMode.StepDownHeight = 18f;
+		walkMode.GroundAngle = 45f;
 
 		var controller = bean.Components.GetOrCreate<TapperPlayerBean>();
 		controller.Configure( IsLocalPlayer( player ), renderer, animation );
@@ -77,7 +116,10 @@ public sealed partial class PhysicalFastestTapperGame
 			return;
 
 		if ( player.BeanController.IsValid() )
+		{
 			player.BeanController.IsLocalPlayer = IsLocalPlayer( player );
+			player.BeanController.CameraYaw = ThirdPersonCameraYaw;
+		}
 
 		if ( player.BeanNameText.IsValid() )
 		{
@@ -87,8 +129,6 @@ public sealed partial class PhysicalFastestTapperGame
 			player.BeanNameText.Color = player.StationIndex >= 0 ? ReadyStationColor : Color.White;
 		}
 
-		if ( player.StationIndex < 0 && player.Bean.WorldPosition.LengthSquared < 1f )
-			player.Bean.WorldPosition = GetBeanSpawnPosition( slot );
 	}
 
 	private bool IsLocalPlayer( PlayerScore player )
@@ -100,7 +140,9 @@ public sealed partial class PhysicalFastestTapperGame
 	{
 		var lane = slot < 0 ? 0 : slot;
 		var stage = GetVenueStageOrigin();
-		return stage + new Vector3( -430f, -560f + lane * 110f, 84f );
+		var firstY = MathF.Max( CurrentRoomLayout.LeftWallY + 360f, -560f );
+		var y = MathF.Min( firstY + lane * 110f, CurrentRoomLayout.RightWallY - 360f );
+		return stage + new Vector3( -CurrentRoomLayout.FloorWidth * 0.18f, y, 84f );
 	}
 
 	private bool IsPlayerCloseEnoughToClaim( PlayerScore player, TapperStation station )
@@ -109,17 +151,6 @@ public sealed partial class PhysicalFastestTapperGame
 			return true;
 
 		return player.BeanController.IsWithinClaimRange( station.Origin );
-	}
-
-	private void MoveBeanToClaimedStation( PlayerScore player, TapperStation station )
-	{
-		if ( player?.Bean is null || !player.Bean.IsValid() || station is null )
-			return;
-
-		player.Bean.WorldPosition = station.Origin + new Vector3( -120f, -145f, 84f );
-		var look = (station.Origin - player.Bean.WorldPosition).WithZ( 0f );
-		if ( look.LengthSquared > 1f )
-			player.Bean.WorldRotation = Rotation.LookAt( look.Normal, Vector3.Up );
 	}
 
 	private PlayerScore GetLocalPlayer()

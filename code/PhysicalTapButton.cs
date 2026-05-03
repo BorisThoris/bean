@@ -17,7 +17,7 @@ public sealed class PhysicalTapButton : Component
 		if ( !Game.IsValid() )
 			FindGameController();
 
-		if ( !Input.Keyboard.Pressed( "MOUSE1" ) )
+		if ( !PhysicalFastestTapperGame.IsPrimaryClickPressed() )
 			return;
 
 		var camera = Scene.Camera;
