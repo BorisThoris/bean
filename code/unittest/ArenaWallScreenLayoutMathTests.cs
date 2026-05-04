@@ -28,8 +28,8 @@ public sealed class ArenaWallScreenLayoutMathTests
 		var room = RuntimeRoomLayoutMath.Build( 4 );
 		var layout = ArenaWallScreenLayoutMath.Build( room );
 
-		Assert.AreEqual( room.FloorDepth - ArenaWallScreenLayoutMath.WallEdgePadding * 2f, layout.ScreenWidth, 0.001f );
-		Assert.AreEqual( room.WallHeight - ArenaWallScreenLayoutMath.WallVerticalPadding * 2f, layout.ScreenHeight, 0.001f );
+		Assert.AreEqual( (room.FloorDepth - ArenaWallScreenLayoutMath.WallEdgePadding * 2f) * ArenaWallScreenLayoutMath.ScreenSizeMultiplier, layout.ScreenWidth, 0.001f );
+		Assert.AreEqual( (room.WallHeight - ArenaWallScreenLayoutMath.WallVerticalPadding * 2f) * ArenaWallScreenLayoutMath.ScreenSizeMultiplier, layout.ScreenHeight, 0.001f );
 		Assert.IsGreaterThan( room.FloorDepth * 0.98f, layout.ScreenWidth );
 		Assert.IsGreaterThan( room.WallHeight * 0.93f, layout.ScreenHeight );
 	}
@@ -42,8 +42,8 @@ public sealed class ArenaWallScreenLayoutMathTests
 		var defaultLayout = ArenaWallScreenLayoutMath.Build( defaultRoom );
 		var eightPlayerLayout = ArenaWallScreenLayoutMath.Build( eightPlayerRoom );
 
-		Assert.AreEqual( defaultRoom.FloorDepth - ArenaWallScreenLayoutMath.WallEdgePadding * 2f, defaultLayout.ScreenWidth, 0.001f );
-		Assert.AreEqual( eightPlayerRoom.FloorDepth - ArenaWallScreenLayoutMath.WallEdgePadding * 2f, eightPlayerLayout.ScreenWidth, 0.001f );
+		Assert.AreEqual( (defaultRoom.FloorDepth - ArenaWallScreenLayoutMath.WallEdgePadding * 2f) * ArenaWallScreenLayoutMath.ScreenSizeMultiplier, defaultLayout.ScreenWidth, 0.001f );
+		Assert.AreEqual( (eightPlayerRoom.FloorDepth - ArenaWallScreenLayoutMath.WallEdgePadding * 2f) * ArenaWallScreenLayoutMath.ScreenSizeMultiplier, eightPlayerLayout.ScreenWidth, 0.001f );
 		Assert.IsGreaterThan( defaultLayout.ScreenWidth, eightPlayerLayout.ScreenWidth );
 	}
 

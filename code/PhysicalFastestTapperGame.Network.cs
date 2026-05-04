@@ -1,4 +1,6 @@
+using Sandbox;
 using System;
+using System.Globalization;
 using System.Linq;
 
 public sealed partial class PhysicalFastestTapperGame
@@ -29,6 +31,8 @@ public sealed partial class PhysicalFastestTapperGame
 		SyncedTournamentPoints.Clear();
 		SyncedFocusHits.Clear();
 		SyncedNames.Clear();
+		SyncedHeat.Clear();
+		SyncedLookDirections.Clear();
 
 		foreach ( var player in Players )
 		{
@@ -39,6 +43,8 @@ public sealed partial class PhysicalFastestTapperGame
 			SyncedTournamentPoints[key] = player.TournamentPoints;
 			SyncedFocusHits[key] = player.FocusHits;
 			SyncedNames[key] = string.IsNullOrWhiteSpace( player.Name ) ? "PLAYER" : player.Name;
+			SyncedHeat[key] = player.Heat;
+			SyncedLookDirections[key] = EncodeLookDirection( player.LookDirection );
 		}
 	}
 
@@ -100,6 +106,10 @@ public sealed partial class PhysicalFastestTapperGame
 			player.Ready = SyncedReady.TryGetValue( entry.Key, out var ready ) && ready;
 			player.TournamentPoints = SyncedTournamentPoints.TryGetValue( entry.Key, out var points ) ? points : 0;
 			player.FocusHits = SyncedFocusHits.TryGetValue( entry.Key, out var focusHits ) ? focusHits : 0;
+			player.Heat = SyncedHeat.TryGetValue( entry.Key, out var heat ) ? heat : 0f;
+			player.LookDirection = SyncedLookDirections.TryGetValue( entry.Key, out var lookDirectionText ) && TryDecodeLookDirection( lookDirectionText, out var lookDirection )
+				? lookDirection
+				: player.LookDirection;
 			player.Name = SyncedNames.TryGetValue( entry.Key, out var name ) && !string.IsNullOrWhiteSpace( name )
 				? name
 				: entry.Value >= 0 ? $"STATION {entry.Value + 1}" : "PLAYER";
@@ -142,5 +152,48 @@ public sealed partial class PhysicalFastestTapperGame
 		var pressable = CanPressStation( stationIndex ) ? "PRESS OK" : "VIEW ONLY";
 		var stationLabel = stationIndex >= 0 ? $"S{stationIndex + 1}" : "UNCLAIMED";
 		return $"{mode.ToString().ToUpperInvariant()} {stationLabel}\n{pressable}";
+	}
+
+	[Rpc.Host]
+	private void RequestPlayerLookDirection( float x, float y, float z )
+	{
+		var player = GetInteractingPlayer();
+		if ( player is null )
+			return;
+
+		player.LookDirection = NormalizeLookDirection( new Vector3( x, y, z ), player.LookDirection );
+	}
+
+	private static string EncodeLookDirection( Vector3 direction )
+	{
+		var normal = NormalizeLookDirection( direction, Vector3.Forward );
+		return FormattableString.Invariant( $"{normal.x:0.###},{normal.y:0.###},{normal.z:0.###}" );
+	}
+
+	private static bool TryDecodeLookDirection( string value, out Vector3 direction )
+	{
+		direction = Vector3.Forward;
+		if ( string.IsNullOrWhiteSpace( value ) )
+			return false;
+
+		var parts = value.Split( ',' );
+		if ( parts.Length != 3 )
+			return false;
+
+		if ( !float.TryParse( parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var x )
+			|| !float.TryParse( parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var y )
+			|| !float.TryParse( parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var z ) )
+			return false;
+
+		direction = NormalizeLookDirection( new Vector3( x, y, z ), Vector3.Forward );
+		return true;
+	}
+
+	private static Vector3 NormalizeLookDirection( Vector3 direction, Vector3 fallback )
+	{
+		if ( direction.LengthSquared > 0.001f )
+			return direction.Normal;
+
+		return fallback.LengthSquared > 0.001f ? fallback.Normal : Vector3.Forward;
 	}
 }

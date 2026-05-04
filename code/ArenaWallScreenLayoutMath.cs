@@ -58,8 +58,9 @@ public static class ArenaWallScreenLayoutMath
 	public const float ScreenInsetFromRearWall = 28f;
 	public const float ScreenCenterY = 0f;
 	public const float ScreenModelThickness = 30f;
-	public const float WallEdgePadding = 20f;
-	public const float WallVerticalPadding = 20f;
+	public const float WallEdgePadding = 0f;
+	public const float WallVerticalPadding = 0f;
+	public const float ScreenSizeMultiplier = 2f;
 	public const float TargetZOffset = 180f;
 	public const float UiForwardOffset = 48f;
 	public const float WorldPanelWorldScale = 10f;
@@ -69,8 +70,8 @@ public static class ArenaWallScreenLayoutMath
 		var screenX = roomLayout.RearWallX - ScreenInsetFromRearWall;
 		var screenY = ScreenCenterY;
 		var screenZ = roomLayout.WallHeight * 0.5f;
-		var screenWidth = MathF.Max( 1f, roomLayout.FloorDepth - WallEdgePadding * 2f );
-		var screenHeight = MathF.Max( 1f, roomLayout.WallHeight - WallVerticalPadding * 2f );
+		var screenWidth = MathF.Max( 1f, roomLayout.FloorDepth - WallEdgePadding * 2f ) * ScreenSizeMultiplier;
+		var screenHeight = MathF.Max( 1f, roomLayout.WallHeight - WallVerticalPadding * 2f ) * ScreenSizeMultiplier;
 		var uiScale = WorldPanelWorldScale;
 		var cssWidth = Math.Max( 1, (int)MathF.Round( screenWidth ) );
 		var cssHeight = Math.Max( 1, (int)MathF.Round( screenHeight ) );

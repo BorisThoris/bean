@@ -117,13 +117,19 @@ public sealed partial class PhysicalFastestTapperGame
 
 		if ( player.BeanController.IsValid() )
 		{
-			player.BeanController.IsLocalPlayer = IsLocalPlayer( player );
+			var isLocalPlayer = IsLocalPlayer( player );
+			player.BeanController.IsLocalPlayer = isLocalPlayer;
 			player.BeanController.CameraYaw = ThirdPersonCameraYaw;
+			player.BeanController.CameraPitch = ThirdPersonCameraPitch;
+			player.BeanController.LookTarget = ResolveBeanLookTarget( player, isLocalPlayer );
+			player.BeanController.IsFirstPersonView = isLocalPlayer && IsFirstPersonCameraActive();
+			player.BeanController.Happiness = player.Heat;
 		}
 
 		if ( player.BeanNameText.IsValid() )
 		{
-			player.BeanNameText.GameObject.Enabled = true;
+			var localFirstPerson = IsLocalPlayer( player ) && IsFirstPersonCameraActive();
+			player.BeanNameText.GameObject.Enabled = !localFirstPerson;
 			var stationText = player.StationIndex >= 0 ? $"S{player.StationIndex + 1}" : "UNCLAIMED";
 			SetText( player.BeanNameText, $"{player.Name}\n{stationText}" );
 			player.BeanNameText.Color = player.StationIndex >= 0 ? ReadyStationColor : Color.White;
@@ -134,6 +140,70 @@ public sealed partial class PhysicalFastestTapperGame
 	private bool IsLocalPlayer( PlayerScore player )
 	{
 		return player is not null && (player.ConnectionKey ?? ConnectionKey( player.Connection )) == ConnectionKey( Connection.Local );
+	}
+
+	private Vector3 ResolveBeanLookTarget( PlayerScore player, bool isLocalPlayer )
+	{
+		if ( player is null || !player.Bean.IsValid() )
+			return GetVenueStageOrigin();
+
+		var eyePosition = GetBeanEyePosition( player );
+		if ( !isLocalPlayer )
+			return eyePosition + NormalizeLookDirection( player.LookDirection, Vector3.Forward ) * 1000f;
+
+		var camera = Scene.Camera;
+		if ( !camera.IsValid() )
+		{
+			var fallbackDirection = NormalizeLookDirection( Rotation.From( ThirdPersonCameraPitch, ThirdPersonCameraYaw, 0f ).Forward, player.LookDirection );
+			player.LookDirection = fallbackDirection;
+			TryPublishLocalLookDirection( player, fallbackDirection );
+			return eyePosition + fallbackDirection * 1000f;
+		}
+
+		Vector3 target;
+
+		if ( IsCameraLookActive() )
+		{
+			target = camera.WorldPosition + camera.WorldRotation.Forward * 1000f;
+		}
+		else
+		{
+			var ray = camera.ScreenPixelToRay( Mouse.Position );
+			var trace = Scene.Trace
+				.Ray( ray, 10000f )
+				.IgnoreGameObjectHierarchy( player.Bean )
+				.WithoutTags( "trigger" )
+				.Run();
+
+			target = trace.Hit ? trace.EndPosition : ray.Position + ray.Forward * 10000f;
+		}
+
+		var direction = NormalizeLookDirection( target - eyePosition, player.LookDirection );
+		player.LookDirection = direction;
+		TryPublishLocalLookDirection( player, direction );
+		return eyePosition + direction * MathF.Max( 1000f, eyePosition.Distance( target ) );
+	}
+
+	private void TryPublishLocalLookDirection( PlayerScore player, Vector3 direction )
+	{
+		if ( player is null )
+			return;
+
+		var now = RealTime.Now;
+		var changed = direction.Distance( player.LastSentLookDirection ) > 0.025f;
+		if ( !changed && now - player.LastLookPublishTime < 0.08f )
+			return;
+
+		player.LastSentLookDirection = direction;
+		player.LastLookPublishTime = now;
+
+		if ( Networking.IsActive && !Networking.IsHost )
+			RequestPlayerLookDirection( direction.x, direction.y, direction.z );
+	}
+
+	private static Vector3 GetBeanEyePosition( PlayerScore player )
+	{
+		return player.Bean.WorldPosition + Vector3.Up * 72f;
 	}
 
 	private Vector3 GetBeanSpawnPosition( int slot )

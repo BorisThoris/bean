@@ -1,0 +1,14 @@
+"Layer0"
+{
+	"shader"		"shaders/projection_endless.shader"
+	"g_flProjectionSpeed"		"0.180000"
+	"g_flProjectionDistort"		"0.340000"
+	"g_flProjectionRippleScale"		"3.800000"
+	"g_flProjectionFoamAmount"		"0.380000"
+	"g_flProjectionGlow"		"2.650000"
+	"g_flProjectionAlpha"		"1.000000"
+	"g_flProjectionFloorMode"		"0.000000"
+	"g_vProjectionLowColor"		"[0.012 0.045 0.140]"
+	"g_vProjectionMidColor"		"[0.035 0.330 0.760]"
+	"g_vProjectionHighColor"		"[0.620 0.920 1.000]"
+}

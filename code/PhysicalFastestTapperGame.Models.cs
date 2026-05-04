@@ -41,6 +41,13 @@ public sealed partial class PhysicalFastestTapperGame
 		Spectating
 	}
 
+	private enum VenueLightRole
+	{
+		Ambient,
+		Station,
+		WallScreen
+	}
+
 	public enum TapperGameMode
 	{
 		Classic10,
@@ -105,6 +112,9 @@ public sealed partial class PhysicalFastestTapperGame
 		public bool Spectating;
 		public string LastInteractionMessage = "";
 		public float LastInteractionMessageTime;
+		public Vector3 LookDirection = Vector3.Forward;
+		public Vector3 LastSentLookDirection = Vector3.Forward;
+		public float LastLookPublishTime;
 	}
 
 	private sealed class TapperStation
@@ -139,6 +149,49 @@ public sealed partial class PhysicalFastestTapperGame
 		public TextRenderer Mode;
 		public TextRenderer Leaderboard;
 		public TextRenderer Stations;
+	}
+
+	private sealed class VenueDynamicLight
+	{
+		public GameObject GameObject;
+		public PointLight Point;
+		public SpotLight Spot;
+		public VenueLightRole Role;
+		public int StationIndex = -1;
+		public Color BaseColor;
+		public float BaseRadius;
+	}
+
+	private sealed class ProjectionSphereVisual
+	{
+		public GameObject GameObject;
+		public ModelRenderer Renderer;
+		public GameObject GlowObject;
+		public ModelRenderer GlowRenderer;
+		public PointLight Light;
+		public float Longitude;
+		public float Latitude;
+		public float OrbitSpeed;
+		public float Phase;
+		public float RadiusScale;
+		public float BaseScale;
+		public Color DayColor;
+		public Color NightColor;
+	}
+
+	private sealed class ProjectionShootingStarVisual
+	{
+		public GameObject GameObject;
+		public ModelRenderer Renderer;
+		public PointLight Light;
+		public float SpawnTime;
+		public float Duration;
+		public float StartLongitude;
+		public float StartLatitude;
+		public float Direction;
+		public float Phase;
+		public float BaseScale;
+		public bool Active;
 	}
 
 }

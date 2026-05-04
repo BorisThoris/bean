@@ -16,87 +16,96 @@
 				.Select( ( station, index ) => new TapperWallLeaderboardDisplay( index + 1, station.Name, station.SteamId, station.Score, station.Speed, Math.Max( 0, 4 - index ), station.CssClass == "winner" ) )
 				.ToArray();
 		var top = leaders.FirstOrDefault();
-		var rest = leaders.Skip( 1 ).Take( 5 ).ToArray();
+		var rest = leaders.Skip( 1 ).Take( 3 ).ToArray();
 		var hasLeader = leaders.Length > 0;
 		var maxScore = Math.Max( 1, leaders.Length > 0 ? leaders.Max( x => x.Score ) : state.Stations.Max( x => x.Score ) );
 		var maxSpeed = Math.Max( 1f, leaders.Length > 0 ? leaders.Max( x => x.PeakSpeed ) : state.Stations.Max( x => x.Speed ) );
+		var stationCountClass = $"station-count-{Math.Clamp( state.Stations.Length, 1, 8 )}";
+		var headlineClass = $"headline {GetHeadlineFitClass( state.Headline )}";
+		var titleClass = $"title {GetSingleLineFitClass( state.Title, 18 )}";
+		var modeClass = $"match-pill {GetSingleLineFitClass( state.ModeName, 10 )}";
 
-		<div class="screen-shell">
+		<div class=@($"screen-shell {stationCountClass}")>
 			<div class="top-bar">
-				<div>
-					<div class="debug-badge">@state.Debug</div>
-					<div class="title">@state.Title</div>
+				<div class="brand-block">
+					<div class=@titleClass>@state.Title</div>
+					<div class="subtitle">@state.EventPhase</div>
 				</div>
 				<div class="match-strip">
-					<div class="match-pill">@state.ModeName</div>
+					<div class=@modeClass>@state.ModeName</div>
 					<div class="match-pill">ROUND @state.TournamentRound/@state.TournamentRounds</div>
 					<div class="match-pill">@state.ClaimedStations CLAIMED</div>
 				</div>
 			</div>
 
 			<div class="arena-board">
-				<div class="hero-panel">
-					<div class="pulse-ring"></div>
-					<div class="headline">@state.Headline</div>
-					<div class="timer-row">
-						<span>@state.RoundState</span>
-						<strong>@Math.Max( 0, Math.Ceiling( state.TimeRemaining ) ).ToString( "00" )</strong>
-					</div>
-					<div class="round-meter">
-						<div style=@($"width: {Percent( state.RoundProgress )}%")></div>
-					</div>
-				</div>
-
-				<div class="leaderboard-panel">
-					<div class="panel-title">
-						<span>LEADERBOARD</span>
-						<small>LIVE RANKING</small>
+				<div class="content-row">
+					<div class="hero-panel">
+						<div class=@headlineClass>@state.Headline</div>
+						<div class="timer-row">
+							<span>@state.RoundState</span>
+							<strong>@Math.Max( 0, Math.Ceiling( state.TimeRemaining ) ).ToString( "00" )</strong>
+						</div>
+						<div class="round-meter">
+							<div style=@($"width: {Percent( state.RoundProgress )}%")></div>
+						</div>
 					</div>
 
-					@if ( hasLeader )
-					{
-						<div class=@($"leader-champion {(top.Winner ? "winner" : "")}")>
-							<div class="avatar avatar-large">@GetInitials( top.Name )</div>
-							<div class="champion-copy">
-								<div class="champion-kicker">#@top.Rank CURRENT LEADER</div>
-								<div class="champion-name">@top.Name</div>
-								<div class="champion-stats">
-									<span>@top.Score taps</span>
-									<span>@top.PeakSpeed.ToString( "0.0" )/s peak</span>
-									<span>@top.Points pts</span>
+					<div class="leaderboard-panel">
+						<div class="panel-title">
+							<span>LEADERBOARD</span>
+							<small>LIVE</small>
+						</div>
+
+						@if ( hasLeader )
+						{
+							<div class=@($"leader-champion {(top.Winner ? "winner" : "")}")>
+								<div class=@AvatarClass( top.SteamId, "avatar avatar-large" ) style=@AvatarStyle( top.SteamId )>
+									<span>@GetInitials( top.Name )</span>
+								</div>
+								<div class="champion-copy">
+									<div class="champion-kicker">#@top.Rank CURRENT LEADER</div>
+									<div class="champion-name">@top.Name</div>
+									<div class="champion-stats">
+										<span>@top.Score taps</span>
+										<span>@top.PeakSpeed.ToString( "0.0" )/s peak</span>
+										<span>@top.Points pts</span>
+									</div>
 								</div>
 							</div>
-						</div>
 
-						<div class="leader-list">
-							@foreach ( var leader in rest )
-							{
-								<div class=@($"leader-row {(leader.Winner ? "winner" : "")}")>
-									<div class="rank">@leader.Rank</div>
-									<div class="avatar">@GetInitials( leader.Name )</div>
-									<div class="leader-identity">
-										<div class="leader-name">@leader.Name</div>
-										<div class="leader-subline">@leader.Points tournament pts</div>
+							<div class="leader-list">
+								@foreach ( var leader in rest )
+								{
+									<div class=@($"leader-row {(leader.Winner ? "winner" : "")}")>
+										<div class="rank">@leader.Rank</div>
+										<div class=@AvatarClass( leader.SteamId, "avatar" ) style=@AvatarStyle( leader.SteamId )>
+											<span>@GetInitials( leader.Name )</span>
+										</div>
+										<div class="leader-identity">
+											<div class="leader-name">@leader.Name</div>
+											<div class="leader-subline">@leader.Points pts</div>
+										</div>
+										<div class="leader-metrics">
+											<strong>@leader.Score</strong>
+											<span>@leader.PeakSpeed.ToString( "0.0" )/s</span>
+										</div>
+										<div class="leader-bars">
+											<i style=@($"width: {Percent( leader.Score / (float)maxScore )}%")></i>
+											<b style=@($"width: {Percent( leader.PeakSpeed / maxSpeed )}%")></b>
+										</div>
 									</div>
-									<div class="leader-metrics">
-										<strong>@leader.Score</strong>
-										<span>@leader.PeakSpeed.ToString( "0.0" )/s</span>
-									</div>
-									<div class="leader-bars">
-										<i style=@($"width: {Percent( leader.Score / (float)maxScore )}%")></i>
-										<b style=@($"width: {Percent( leader.PeakSpeed / maxSpeed )}%")></b>
-									</div>
-								</div>
-							}
-						</div>
-					}
-					else
-					{
-						<div class="empty-leaderboard">WALK TO A PLATFORM AND HIT ITS BUTTON TO CLAIM</div>
-					}
+								}
+							</div>
+						}
+						else
+						{
+							<div class="empty-leaderboard">CLAIM A PLATFORM TO JOIN</div>
+						}
+					</div>
 				</div>
 
-				<div class="station-grid">
+				<div class=@($"station-grid {stationCountClass}")>
 					@foreach ( var row in state.Stations )
 					{
 						<div class=@($"station-card {row.CssClass}")>
@@ -105,7 +114,9 @@
 								<strong>@row.Status</strong>
 							</div>
 							<div class="station-player">
-								<div class="avatar avatar-small">@GetInitials( row.Name )</div>
+								<div class=@AvatarClass( row.SteamId, "avatar avatar-small" ) style=@AvatarStyle( row.SteamId )>
+									<span>@GetInitials( row.Name )</span>
+								</div>
 								<div class="station-name">@row.Name</div>
 							</div>
 							<div class="station-stats">
@@ -123,7 +134,7 @@
 
 			<div class="bottom-band">
 				<span>@state.Mode</span>
-				<span>@state.EventPhase</span>
+				<span>@state.RoundState</span>
 			</div>
 		</div>
 	}
@@ -159,24 +170,55 @@
 		return initials.ToUpper();
 	}
 
+	private static string AvatarClass( string steamId, string baseClass )
+	{
+		return string.IsNullOrWhiteSpace( steamId ) ? baseClass : $"{baseClass} has-image";
+	}
+
+	private static string AvatarStyle( string steamId )
+	{
+		return string.IsNullOrWhiteSpace( steamId ) ? "" : $"background-image: url( avatar:{steamId} )";
+	}
+
+	private static string GetHeadlineFitClass( string headline )
+	{
+		if ( string.IsNullOrWhiteSpace( headline ) )
+			return "short";
+
+		var lines = headline.Split( '\n' );
+		var longest = lines.Length == 0 ? headline.Length : lines.Max( x => x.Length );
+		if ( lines.Length >= 3 || longest > 14 )
+			return "compact";
+
+		if ( lines.Length > 1 || longest > 9 )
+			return "stacked";
+
+		return "short";
+	}
+
+	private static string GetSingleLineFitClass( string text, int compactAfter )
+	{
+		return string.IsNullOrWhiteSpace( text ) || text.Length <= compactAfter ? "normal" : "compact";
+	}
+
 	protected override int BuildHash()
 	{
 		if ( !Game.IsValid() )
 			return 0;
 
 		var state = Game.GetWallScreenState();
-		var hash = HashCode.Combine( state.Title, state.Headline, state.Mode, state.Debug, state.RoundState, state.EventPhase );
-		hash = HashCode.Combine( hash, state.ModeName, state.TournamentRound, state.TournamentRounds, state.ClaimedStations );
-		hash = HashCode.Combine( hash, state.TimeRemaining, state.RoundProgress );
+		var hash = HashCode.Combine( state.Title, GetSingleLineFitClass( state.Title, 18 ), state.Headline, GetHeadlineFitClass( state.Headline ), state.Mode, state.RoundState, state.EventPhase );
+		hash = HashCode.Combine( hash, state.ModeName, GetSingleLineFitClass( state.ModeName, 10 ), state.TournamentRound, state.TournamentRounds, state.ClaimedStations );
+		hash = HashCode.Combine( hash, state.Stations.Length, state.TimeRemaining, state.RoundProgress );
 
 		foreach ( var row in state.Stations )
 		{
-			hash = HashCode.Combine( hash, row.Station, row.Name, row.Status, row.Score );
+			hash = HashCode.Combine( hash, row.Station, row.Name, row.SteamId, row.Status, row.Score );
 			hash = HashCode.Combine( hash, row.Speed, row.Progress, row.Heat, row.CssClass );
 		}
 
 		foreach ( var leader in state.Leaders )
-			hash = HashCode.Combine( hash, leader.Rank, leader.Name, leader.Score, leader.PeakSpeed, leader.Points, leader.Winner );
+			hash = HashCode.Combine( hash, leader.Rank, leader.Name, leader.SteamId, leader.Score, leader.PeakSpeed, leader.Points, leader.Winner );
 
 		return hash;
 	}

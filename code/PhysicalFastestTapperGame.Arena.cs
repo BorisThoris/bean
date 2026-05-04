@@ -8,17 +8,26 @@ using System.Threading.Tasks;
 public sealed partial class PhysicalFastestTapperGame
 {
 	private const string QuaterniusModelRoot = "models/quaternius/modular_sci_fi/";
-	private const string ArenaFloorModel = QuaterniusModelRoot + "platform_metal.vmdl";
 	private const string StationPedestalModel = QuaterniusModelRoot + "platform_simple.vmdl";
 	private const string TapperButtonModel = QuaterniusModelRoot + "prop_barrel_large.vmdl";
 	private const string StationBarTrackModel = QuaterniusModelRoot + "decal_line_straight.vmdl";
 	private const string StationBarFillModel = QuaterniusModelRoot + "decal_line_straight.vmdl";
 	private const string WallPanelModel = QuaterniusModelRoot + "wallband_straight.vmdl";
+	private const string WallDividedPanelModel = QuaterniusModelRoot + "wallastra_straight_divided.vmdl";
+	private const string WallMetalPlateModel = QuaterniusModelRoot + "shortwall_metalplates_straight.vmdl";
+	private const string WallVentModel = QuaterniusModelRoot + "prop_vent_big.vmdl";
+	private const string WallAccessPointModel = QuaterniusModelRoot + "prop_accesspoint.vmdl";
+	private const string WallCableModel = QuaterniusModelRoot + "topcables_straight.vmdl";
+	private const string WallSupportColumnModel = QuaterniusModelRoot + "column_metalsupport.vmdl";
 	private const float DevLayoutUnitSize = 50f;
-	private const float ArcadeTileSize = 260f;
 	private const float ArcadeWallBaySize = 300f;
+	private const float ArcadeRoofBaySize = 340f;
+	private const float VenueWallThickness = 42f;
+	private const float VenueRoofThickness = 34f;
+	private const float VenueBoundaryWallThickness = 24f;
 
 	private readonly Dictionary<string, ModelMetrics> ModelMetricsByPath = new();
+	private readonly List<VenueDynamicLight> VenueDynamicLights = new();
 	private RuntimeRoomLayout CurrentRoomLayout = RuntimeRoomLayoutMath.Build( 4 );
 	private int CurrentGeneratedStationCount = -1;
 
@@ -59,7 +68,7 @@ public sealed partial class PhysicalFastestTapperGame
 		LogConstructDiagnostics( "OnStart.EnsureArena", VenueMapLoaded, HasVenueSceneMap() );
 		Log.Info( $"[TapperConstruct] phase=Stage.Placement origin='{stage}' stations={layout.StationCount} stationSpanY={layout.StationSpanY} floor='{layout.FloorWidth}x{layout.FloorDepth}' suppressGeneratedAmbient={VenueMapLoaded}" );
 		CreateArcadeFloor( stage, layout );
-		EnsureVenueWorld();
+		EnsureVenueWorld( stage, layout );
 		CreateArenaWallScreen( stage, layout );
 
 		for ( var i = 0; i < layout.StationCount; i++ )
@@ -73,7 +82,28 @@ public sealed partial class PhysicalFastestTapperGame
 
 	private void ClearGeneratedArcadeDressing()
 	{
-		foreach ( var prefix in new[] { "Arena Floor", "Arena Lane Strip", "Arena Key Glow", "Arena Wall Screen", "Arena Wall Fallback", "Arena Title Text", "Arena Timer Text", "Arena Mode Text", "Arena Leaderboard Text", "Arena Wall Station Row", "Leaderboard Tower", "Venue Wall Bay", "Venue Ceiling Bay", "Venue Arcade Cabinet", "Venue Accent Column", "Venue Corner Glow", "Venue Office", "Venue Backdrop", "Venue High Sky", "Venue Asset", "Venue Speaker Stack", "Venue Light Rig", "Venue Header", "Venue Overhead", "Venue Left Back Wall", "Venue Right Back Wall", "Venue Podium", "Construct Tapper", "Arcade Key", "Arcade Warm", "Arcade Board", "Arcade Station", "Station Arcade", "Station 0 Speed Spark", "Station 1 Speed Spark", "Station 2 Speed Spark", "Station 3 Speed Spark", "Station 4 Speed Spark", "Station 5 Speed Spark", "Station 6 Speed Spark", "Station 7 Speed Spark" } )
+		VenueDynamicLights.Clear();
+		ProjectionStars.Clear();
+		ProjectionClothes.Clear();
+		ProjectionShootingStars.Clear();
+		ProjectionSphereObject = null;
+		ProjectionSphereRenderer = null;
+		LiquidGlassFloorObject = null;
+		LiquidGlassFloorRenderer = null;
+		ProjectionTopLightObject = null;
+		ProjectionTopLightMarkerObject = null;
+		ProjectionTopLightMarkerRenderer = null;
+		ProjectionTopLight = null;
+		ProjectionSunObject = null;
+		ProjectionSunRenderer = null;
+		ProjectionSunLight = null;
+		ProjectionMoonObject = null;
+		ProjectionMoonGlowObject = null;
+		ProjectionMoonRenderer = null;
+		ProjectionMoonGlowRenderer = null;
+		ProjectionMoonLight = null;
+
+		foreach ( var prefix in new[] { "Arena Floor", "Arena Liquid Glass Floor", "Arena Lane Strip", "Arena Key Glow", "Arena Wall Screen", "Arena Wall Fallback", "Arena Title Text", "Arena Timer Text", "Arena Mode Text", "Arena Leaderboard Text", "Arena Wall Station Row", "Leaderboard Tower", "Venue Projection Sphere", "Venue Projection Sky", "Venue Projection Visibility Beacon", "Venue Projection Top Light", "Venue Projection Sun", "Venue Projection Moon", "Venue Projection Star", "Venue Projection Shooting Star", "Venue Projection Clothes", "Venue Boundary Blocker", "Venue Boundary Plane", "Venue Boundary Wall", "Venue Wall Bay", "Venue Wall Detail", "Venue Ceiling Bay", "Venue Arcade Cabinet", "Venue Accent Column", "Venue Corner Glow", "Venue Office", "Venue Backdrop", "Venue High Sky", "Venue Asset", "Venue Speaker Stack", "Venue Light Rig", "Venue Header", "Venue Overhead", "Venue Left Back Wall", "Venue Right Back Wall", "Venue Podium", "Construct Tapper", "Arcade Key", "Arcade Warm", "Arcade Board", "Arcade Station", "Station Arcade", "Station 0 Speed Spark", "Station 1 Speed Spark", "Station 2 Speed Spark", "Station 3 Speed Spark", "Station 4 Speed Spark", "Station 5 Speed Spark", "Station 6 Speed Spark", "Station 7 Speed Spark" } )
 		{
 			foreach ( var gameObject in Scene.GetAllObjects( true ).Where( x => x.IsValid() && x.Name.StartsWith( prefix ) ).ToArray() )
 				gameObject.Destroy();
@@ -82,42 +112,878 @@ public sealed partial class PhysicalFastestTapperGame
 
 	private void CreateArcadeFloor( Vector3 stage, RuntimeRoomLayout layout )
 	{
-		var xCount = Math.Max( 5, (int)MathF.Ceiling( layout.FloorWidth / ArcadeTileSize ) );
-		var yCount = Math.Max( 5, (int)MathF.Ceiling( layout.FloorDepth / ArcadeTileSize ) );
-		var startX = -layout.FloorWidth * 0.5f + ArcadeTileSize * 0.5f;
-		var startY = -layout.FloorDepth * 0.5f + ArcadeTileSize * 0.5f;
-
-		for ( var x = 0; x < xCount; x++ )
-		{
-			for ( var y = 0; y < yCount; y++ )
-			{
-				CreateModelObjectWorld( $"Arena Floor Tile {x:00}-{y:00}", stage + new Vector3( startX + x * ArcadeTileSize, startY + y * ArcadeTileSize, 0f ), new Vector3( ArcadeTileSize - 10f, ArcadeTileSize - 10f, layout.FloorThickness ), ArenaFloorModel, new Color( 0.16f, 0.175f, 0.19f, 1f ), false, true, ModelPlacementAnchor.Floor );
-			}
-		}
-
+		CreateLiquidGlassFloor( stage, layout );
 	}
 
-	private void CreateArcadeWallBays( RuntimeRoomLayout layout )
+	private void CreateLiquidGlassFloor( Vector3 stage, RuntimeRoomLayout layout )
 	{
-		var wallCenterZ = layout.WallHeight * 0.5f;
-		var roomCenterX = (layout.RearWallX - layout.FloorWidth * 0.32f) * 0.5f;
+		if ( !UseLiquidGlassFloor )
+			return;
+
+		var frontWallX = RuntimeRoomLayoutMath.FrontWallX( layout );
+		var center = stage + new Vector3(
+			frontWallX + layout.FloorWidth * 0.5f,
+			layout.LeftWallY + layout.FloorDepth * 0.5f,
+			layout.FloorThickness + LiquidGlassFloorHeightAboveFloor );
+		var materialPath = ForceLiquidGlassFloorDiagnosticMaterial ? LiquidGlassFloorDiagnosticMaterialPath : LiquidGlassFloorMaterialPath;
+		var mode = ForceLiquidGlassFloorDiagnosticMaterial ? "diagnostic-known-visible-material" : "official-sbox-glass";
+
+		LiquidGlassFloorObject = FindOrCreate( "Arena Liquid Glass Floor" );
+		LiquidGlassFloorObject.LocalPosition = center;
+		LiquidGlassFloorObject.LocalRotation = Rotation.Identity;
+		LiquidGlassFloorObject.LocalScale = Vector3.One;
+
+		LiquidGlassFloorRenderer = LiquidGlassFloorObject.Components.GetOrCreate<ModelRenderer>();
+		LiquidGlassFloorRenderer.Enabled = true;
+		LiquidGlassFloorRenderer.Model = GetLiquidGlassFloorModel( layout.FloorWidth, layout.FloorDepth, materialPath );
+		LiquidGlassFloorRenderer.Tint = LiquidGlassFloorTint;
+
+		var collider = LiquidGlassFloorObject.Components.GetOrCreate<BoxCollider>();
+		collider.Scale = new Vector3( layout.FloorWidth, layout.FloorDepth, MathF.Max( 8f, layout.FloorThickness ) );
+		collider.Static = true;
+		collider.IsTrigger = false;
+
+		Log.Info( $"[TapperLiquidGlassFloor] mode='{mode}' material='{materialPath}' shader='{(ForceLiquidGlassFloorDiagnosticMaterial ? "diagnostic" : "shaders/glass.shader")}' glassQuality='{(ForceLiquidGlassFloorDiagnosticMaterial ? "diagnostic" : "official-layered-glass")}' translucencyTexture='materials/floor/glass_inputs/glass_translucency.png' floorObjects=1 mesh='single-glass-slab' collision='same-object-box' objectEnabled={LiquidGlassFloorObject.Enabled} rendererEnabled={LiquidGlassFloorRenderer.Enabled} modelValid={LiquidGlassFloorRenderer.Model.IsValid()} position='{center}' heightAboveFloor={LiquidGlassFloorHeightAboveFloor:0.##} size='{layout.FloorWidth:0.#}x{layout.FloorDepth:0.#}' tint='{LiquidGlassFloorTint}' winding='slab-12-triangles' bounds='{layout.FloorWidth:0.#}x{layout.FloorDepth:0.#}x8'" );
+	}
+
+	private void CreateArcadeRoomShell( Vector3 stage, RuntimeRoomLayout layout )
+	{
+		var ceilingHeight = GetVenueCeilingHeight( layout );
+		if ( UseProjectionSphere )
+		{
+			CreateProjectionSphere( stage, layout, ceilingHeight );
+		}
+		else
+		{
+			CreateArcadeWallBays( stage, layout, ceilingHeight );
+			CreateArcadeRoofBays( stage, layout, ceilingHeight );
+		}
+
+		CreateVenueBoundaryWalls( stage, layout, ceilingHeight );
+		CreateVenueLightRig( stage, layout, ceilingHeight );
+	}
+
+	private void CreateProjectionSphere( Vector3 stage, RuntimeRoomLayout layout, float ceilingHeight )
+	{
+		var center = stage + new Vector3(
+			RuntimeRoomLayoutMath.RoomCenterX( layout ),
+			RuntimeRoomLayoutMath.RoomCenterY( layout ),
+			ceilingHeight * 0.46f );
+
+		var floorDiagonal = MathF.Sqrt( layout.FloorWidth * layout.FloorWidth + layout.FloorDepth * layout.FloorDepth );
+		var radius = MathF.Max( floorDiagonal * 0.5f + ProjectionSphereRadiusPadding, ceilingHeight + ProjectionSphereRadiusPadding );
+		ProjectionSphereCenter = center;
+		ProjectionSphereRadius = radius;
+		ProjectionCycleStartTime = RealTime.Now;
+
+		ProjectionSphereObject = FindOrCreate( "Venue Projection Sphere" );
+		ProjectionSphereObject.LocalPosition = center;
+		ProjectionSphereObject.LocalRotation = Rotation.Identity;
+		ProjectionSphereObject.LocalScale = Vector3.One;
+		ProjectionSphereObject.SetParent( EnsureVenueFallbackRoot(), true );
+
+		ProjectionSphereRenderer = ProjectionSphereObject.Components.GetOrCreate<ModelRenderer>();
+		ProjectionSphereRenderer.Model = GetProjectionSphereModel( radius );
+		ProjectionSphereRenderer.Tint = ProjectionSphereTint;
+		CreateProjectionTopLight();
+
+		Log.Info( $"[TapperProjectionSphere] center='{center}' radius={radius:0.#} floor='{layout.FloorWidth:0.#}x{layout.FloorDepth:0.#}' uv='{ProjectionSphereURepeat:0.##}x{ProjectionSphereVRepeat:0.##}' rotationSpeed={ProjectionSphereRotationSpeed:0.##} pitchTilt={ProjectionSpherePitchTilt:0.##}" );
+		Log.Info( $"[TapperProjectionSimpleSpin] material='{ProjectionSkyMaterialPath}' shader='shaders/projection_endless.shader' mapping='sphere-space procedural' uv='{ProjectionSphereURepeat:0.##}x{ProjectionSphereVRepeat:0.##}' rotationSpeed={ProjectionSphereRotationSpeed:0.##} topLight=True dayNight=False orbitalEffects=False procedural=True" );
+	}
+
+	private void CreateProjectionSphereEffects()
+	{
+		if ( !UseProjectionSphere || ProjectionSphereRadius <= 0f )
+			return;
+
+		CreateProjectionSun();
+
+		if ( EnableProjectionMoon )
+			CreateProjectionMoon();
+
+		if ( EnableSphereStars )
+			CreateProjectionStars();
+
+		if ( EnableShootingStars )
+			CreateProjectionShootingStars();
+
+		if ( EnablePixelClothesProjection )
+			CreateProjectionClothes();
+
+		Log.Info( $"[TapperProjectionSky] stars={ProjectionStars.Count} shootingStars={ProjectionShootingStars.Count} moon={ProjectionMoonObject.IsValid()} startNight={StartProjectionCycleAtNight}" );
+	}
+
+	private void CreateProjectionTopLight()
+	{
+		ProjectionTopLightObject = FindOrCreate( "Venue Projection Top Light" );
+		ProjectionTopLightObject.LocalPosition = ProjectionSphereCenter + Vector3.Up * ProjectionSphereRadius * 0.62f;
+		ProjectionTopLightObject.LocalRotation = Rotation.Identity;
+		ProjectionTopLightObject.LocalScale = Vector3.One;
+		ProjectionTopLightObject.SetParent( EnsureVenueFallbackRoot(), true );
+
+		ProjectionTopLight = ProjectionTopLightObject.Components.GetOrCreate<PointLight>();
+		ProjectionTopLight.LightColor = ProjectionTopLightColor * ProjectionTopLightIntensity;
+		ProjectionTopLight.Radius = ProjectionTopLightRadius;
+		ProjectionTopLight.Attenuation = 0.58f;
+		ProjectionTopLight.Shadows = false;
+
+		ProjectionTopLightMarkerObject = FindOrCreate( "Venue Projection Top Light Marker" );
+		ProjectionTopLightMarkerObject.LocalPosition = ProjectionTopLightObject.LocalPosition;
+		ProjectionTopLightMarkerObject.LocalRotation = Rotation.Identity;
+		ProjectionTopLightMarkerObject.LocalScale = Vector3.One * MathF.Max( 42f, ProjectionSphereRadius * 0.028f );
+		ProjectionTopLightMarkerObject.SetParent( EnsureVenueFallbackRoot(), true );
+
+		ProjectionTopLightMarkerRenderer = ProjectionTopLightMarkerObject.Components.GetOrCreate<ModelRenderer>();
+		ProjectionTopLightMarkerRenderer.Model = GetProjectionSunModel();
+		ProjectionTopLightMarkerRenderer.Tint = ProjectionTopLightColor * 2.2f;
+
+		Log.Info( $"[TapperProjectionTopLight] position='{ProjectionTopLightObject.LocalPosition}' radius={ProjectionTopLightRadius:0.#} intensity={ProjectionTopLightIntensity:0.##} color='{ProjectionTopLightColor}' marker=True" );
+	}
+
+	private void CreateProjectionSun()
+	{
+		ProjectionSunObject = FindOrCreate( "Venue Projection Sun" );
+		ProjectionSunObject.LocalScale = Vector3.One * MathF.Max( 24f, ProjectionSphereRadius * 0.045f );
+		ProjectionSunObject.SetParent( EnsureVenueFallbackRoot(), true );
+
+		ProjectionSunRenderer = ProjectionSunObject.Components.GetOrCreate<ModelRenderer>();
+		ProjectionSunRenderer.Model = GetProjectionSunModel();
+		ProjectionSunRenderer.Tint = SunDayColor;
+
+		ProjectionSunLight = ProjectionSunObject.Components.GetOrCreate<PointLight>();
+		ProjectionSunLight.LightColor = SunDayColor;
+		ProjectionSunLight.Radius = SunLightRadius;
+		ProjectionSunLight.Attenuation = 0.65f;
+		ProjectionSunLight.Shadows = false;
+	}
+
+	private void CreateProjectionMoon()
+	{
+		var moonScale = MathF.Max( 82f, ProjectionSphereRadius * 0.072f );
+		ProjectionMoonObject = FindOrCreate( "Venue Projection Moon" );
+		ProjectionMoonObject.LocalScale = Vector3.One * moonScale;
+		ProjectionMoonObject.SetParent( EnsureVenueFallbackRoot(), true );
+
+		ProjectionMoonRenderer = ProjectionMoonObject.Components.GetOrCreate<ModelRenderer>();
+		ProjectionMoonRenderer.Model = GetProjectionMoonModel();
+		ProjectionMoonRenderer.Tint = MoonNightColor;
+
+		ProjectionMoonGlowObject = FindOrCreate( "Venue Projection Moon Glow" );
+		ProjectionMoonGlowObject.LocalScale = Vector3.One * moonScale * MathF.Max( 1f, MoonGlowScale );
+		ProjectionMoonGlowObject.SetParent( EnsureVenueFallbackRoot(), true );
+
+		ProjectionMoonGlowRenderer = ProjectionMoonGlowObject.Components.GetOrCreate<ModelRenderer>();
+		ProjectionMoonGlowRenderer.Model = GetProjectionStarGlowModel();
+		ProjectionMoonGlowRenderer.Tint = new Color( 0.72f, 0.86f, 1f, 1f );
+
+		ProjectionMoonLight = ProjectionMoonObject.Components.GetOrCreate<PointLight>();
+		ProjectionMoonLight.LightColor = MoonNightColor;
+		ProjectionMoonLight.Radius = MoonLightRadius;
+		ProjectionMoonLight.Attenuation = 0.78f;
+		ProjectionMoonLight.Shadows = false;
+	}
+
+	private void CreateProjectionStars()
+	{
+		var count = Math.Clamp( SphereStarCount, 0, 240 );
+		var litEvery = Math.Max( 1, count / 8 );
+		for ( var i = 0; i < count; i++ )
+		{
+			var largeStar = i % 13 == 0;
+			var baseScale = (18f + (i % 5) * 7f) * MathF.Max( 0.25f, StarVisualScale ) * (largeStar ? 1.65f : 1f);
+			var visual = new ProjectionSphereVisual
+			{
+				GameObject = FindOrCreate( $"Venue Projection Star {i:000}" ),
+				Longitude = i * 2.399963f,
+				Latitude = 0.18f + ((i * 37) % 73) / 72f * 1.02f,
+				OrbitSpeed = 0.008f + (i % 5) * 0.002f,
+				Phase = i * 0.73f,
+				RadiusScale = 0.90f,
+				BaseScale = baseScale,
+				DayColor = new Color( 0.55f, 0.7f, 1f, 0.28f ),
+				NightColor = Color.Lerp( new Color( 0.42f, 0.76f, 1f, 1f ), Color.White, (i % 7) / 6f )
+			};
+
+			visual.GameObject.LocalScale = Vector3.One * visual.BaseScale;
+			visual.GameObject.SetParent( EnsureVenueFallbackRoot(), true );
+			visual.Renderer = visual.GameObject.Components.GetOrCreate<ModelRenderer>();
+			visual.Renderer.Model = GetProjectionStarModel();
+			visual.Renderer.Tint = visual.NightColor;
+
+			visual.GlowObject = FindOrCreate( $"Venue Projection Star Glow {i:000}" );
+			visual.GlowObject.LocalScale = Vector3.One * visual.BaseScale * MathF.Max( 1f, StarGlowScale );
+			visual.GlowObject.SetParent( EnsureVenueFallbackRoot(), true );
+			visual.GlowRenderer = visual.GlowObject.Components.GetOrCreate<ModelRenderer>();
+			visual.GlowRenderer.Model = GetProjectionStarGlowModel();
+			visual.GlowRenderer.Tint = new Color( 0.36f, 0.68f, 1f, 1f );
+
+			if ( i % litEvery == 0 )
+			{
+				visual.Light = visual.GameObject.Components.GetOrCreate<PointLight>();
+				visual.Light.LightColor = visual.NightColor;
+				visual.Light.Radius = 520f + (i % 3) * 140f;
+				visual.Light.Attenuation = 0.95f;
+				visual.Light.Shadows = false;
+			}
+
+			ProjectionStars.Add( visual );
+		}
+	}
+
+	private void CreateProjectionShootingStars()
+	{
+		var count = Math.Clamp( ShootingStarCount, 0, 12 );
+		for ( var i = 0; i < count; i++ )
+		{
+			var visual = new ProjectionShootingStarVisual
+			{
+				GameObject = FindOrCreate( $"Venue Projection Shooting Star {i:000}" ),
+				Phase = i * 1.91f,
+				BaseScale = MathF.Max( 72f, ProjectionSphereRadius * 0.032f ),
+				Duration = 1.15f + (i % 3) * 0.18f
+			};
+
+			visual.GameObject.LocalScale = new Vector3( 1f, ShootingStarTrailLength, 0.45f ) * visual.BaseScale;
+			visual.GameObject.SetParent( EnsureVenueFallbackRoot(), true );
+			visual.GameObject.Enabled = false;
+			visual.Renderer = visual.GameObject.Components.GetOrCreate<ModelRenderer>();
+			visual.Renderer.Model = GetProjectionShootingStarModel();
+			visual.Renderer.Tint = ShootingStarColor;
+			visual.Light = visual.GameObject.Components.GetOrCreate<PointLight>();
+			visual.Light.LightColor = ShootingStarColor;
+			visual.Light.Radius = ShootingStarLightRadius;
+			visual.Light.Attenuation = 0.85f;
+			visual.Light.Shadows = false;
+			ProjectionShootingStars.Add( visual );
+		}
+
+		NextShootingStarTime = RealTime.Now + 0.35f;
+	}
+
+	private void CreateProjectionClothes()
+	{
+		var count = Math.Clamp( PixelClothesCount, 0, 24 );
+		for ( var i = 0; i < count; i++ )
+		{
+			var visual = new ProjectionSphereVisual
+			{
+				GameObject = FindOrCreate( $"Venue Projection Clothes {i:000}" ),
+				Longitude = i * 2.13f,
+				Latitude = -0.42f + ((i * 17) % 37) / 36f * 1.05f,
+				OrbitSpeed = PixelClothesOrbitSpeed * (0.62f + (i % 5) * 0.16f),
+				Phase = i * 1.17f,
+				RadiusScale = 0.91f,
+				BaseScale = 46f + (i % 3) * 12f,
+				DayColor = Color.White,
+				NightColor = new Color( 0.42f, 0.72f, 1f, 1f )
+			};
+
+			visual.GameObject.LocalScale = Vector3.One * visual.BaseScale;
+			visual.GameObject.SetParent( EnsureVenueFallbackRoot(), true );
+			visual.Renderer = visual.GameObject.Components.GetOrCreate<ModelRenderer>();
+			visual.Renderer.Model = GetProjectionClothesModel( i % 4 );
+			visual.Renderer.Tint = Color.White;
+			ProjectionClothes.Add( visual );
+		}
+	}
+
+	private Model GetProjectionSphereModel( float radius )
+	{
+		var roundedRadius = MathF.Round( radius );
+		if ( ProjectionSphereModel.IsValid()
+			&& Math.Abs( ProjectionSphereModelRadius - roundedRadius ) < 0.5f
+			&& Math.Abs( ProjectionSphereModelURepeat - ProjectionSphereURepeat ) < 0.001f
+			&& Math.Abs( ProjectionSphereModelVRepeat - ProjectionSphereVRepeat ) < 0.001f
+			&& string.Equals( ProjectionSphereModelMaterialPath, ProjectionSkyMaterialPath, StringComparison.OrdinalIgnoreCase ) )
+		{
+			return ProjectionSphereModel;
+		}
+
+		ProjectionSphereModelRadius = roundedRadius;
+		ProjectionSphereModelURepeat = ProjectionSphereURepeat;
+		ProjectionSphereModelVRepeat = ProjectionSphereVRepeat;
+		ProjectionSphereModelMaterialPath = ProjectionSkyMaterialPath;
+		ProjectionSphereModel = Model.Builder
+			.AddMesh( CreateProjectionSphereMesh( 64, 32, ProjectionSphereURepeat, ProjectionSphereVRepeat, roundedRadius, ProjectionSkyMaterialPath ) )
+			.Create();
+
+		return ProjectionSphereModel;
+	}
+
+	private Model GetLiquidGlassFloorModel( float width, float depth, string materialPath )
+	{
+		var roundedWidth = MathF.Round( width );
+		var roundedDepth = MathF.Round( depth );
+		if ( LiquidGlassFloorModel.IsValid()
+			&& Math.Abs( LiquidGlassFloorModelWidth - roundedWidth ) < 0.5f
+			&& Math.Abs( LiquidGlassFloorModelDepth - roundedDepth ) < 0.5f
+			&& string.Equals( LiquidGlassFloorModelMaterialPath, materialPath, StringComparison.OrdinalIgnoreCase ) )
+		{
+			return LiquidGlassFloorModel;
+		}
+
+		LiquidGlassFloorModelWidth = roundedWidth;
+		LiquidGlassFloorModelDepth = roundedDepth;
+		LiquidGlassFloorModelMaterialPath = materialPath;
+		LiquidGlassFloorModel = Model.Builder
+			.AddMesh( CreateLiquidGlassFloorMesh( roundedWidth, roundedDepth, materialPath ) )
+			.Create();
+
+		return LiquidGlassFloorModel;
+	}
+
+	private static Mesh CreateLiquidGlassFloorMesh( float width, float depth, string materialPath )
+	{
+		var requestedMaterialPath = string.IsNullOrWhiteSpace( materialPath ) ? "materials/core/shader_editor.vmat" : materialPath;
+		var material = Material.Load( requestedMaterialPath );
+		var materialValid = material.IsValid();
+		if ( !materialValid )
+			material = Material.Load( "materials/core/shader_editor.vmat" );
+
+		Log.Info( $"[TapperLiquidGlassFloorMaterial] path='{requestedMaterialPath}' valid={materialValid} fallback='{(!materialValid ? "materials/core/shader_editor.vmat" : "")}'" );
+
+		var halfWidth = width * 0.5f;
+		var halfDepth = depth * 0.5f;
+		const float halfThickness = 4f;
+		var mesh = new Mesh( material );
+		mesh.CreateVertexBuffer<Vertex>( 24 );
+		mesh.CreateIndexBuffer( 36 );
+		mesh.Bounds = BBox.FromPositionAndSize( Vector3.Zero, new Vector3( width, depth, 8f ) );
+
+		mesh.LockVertexBuffer<Vertex>( vertices =>
+		{
+			WriteLiquidGlassFloorFace( vertices, 0, new Vector3( -halfWidth, -halfDepth, halfThickness ), new Vector3( halfWidth, -halfDepth, halfThickness ), new Vector3( -halfWidth, halfDepth, halfThickness ), new Vector3( halfWidth, halfDepth, halfThickness ), Vector3.Up );
+			WriteLiquidGlassFloorFace( vertices, 4, new Vector3( -halfWidth, halfDepth, -halfThickness ), new Vector3( halfWidth, halfDepth, -halfThickness ), new Vector3( -halfWidth, -halfDepth, -halfThickness ), new Vector3( halfWidth, -halfDepth, -halfThickness ), Vector3.Down );
+			WriteLiquidGlassFloorFace( vertices, 8, new Vector3( -halfWidth, halfDepth, halfThickness ), new Vector3( halfWidth, halfDepth, halfThickness ), new Vector3( -halfWidth, halfDepth, -halfThickness ), new Vector3( halfWidth, halfDepth, -halfThickness ), Vector3.Forward );
+			WriteLiquidGlassFloorFace( vertices, 12, new Vector3( halfWidth, -halfDepth, halfThickness ), new Vector3( -halfWidth, -halfDepth, halfThickness ), new Vector3( halfWidth, -halfDepth, -halfThickness ), new Vector3( -halfWidth, -halfDepth, -halfThickness ), Vector3.Backward );
+			WriteLiquidGlassFloorFace( vertices, 16, new Vector3( halfWidth, halfDepth, halfThickness ), new Vector3( halfWidth, -halfDepth, halfThickness ), new Vector3( halfWidth, halfDepth, -halfThickness ), new Vector3( halfWidth, -halfDepth, -halfThickness ), Vector3.Right );
+			WriteLiquidGlassFloorFace( vertices, 20, new Vector3( -halfWidth, -halfDepth, halfThickness ), new Vector3( -halfWidth, halfDepth, halfThickness ), new Vector3( -halfWidth, -halfDepth, -halfThickness ), new Vector3( -halfWidth, halfDepth, -halfThickness ), Vector3.Left );
+		} );
+
+		mesh.LockIndexBuffer( indices =>
+		{
+			for ( var face = 0; face < 6; face++ )
+			{
+				var vertex = face * 4;
+				var index = face * 6;
+				indices[index + 0] = vertex + 0;
+				indices[index + 1] = vertex + 1;
+				indices[index + 2] = vertex + 2;
+				indices[index + 3] = vertex + 1;
+				indices[index + 4] = vertex + 3;
+				indices[index + 5] = vertex + 2;
+			}
+		} );
+
+		return mesh;
+	}
+
+	private static void WriteLiquidGlassFloorFace( Span<Vertex> vertices, int start, Vector3 bottomLeft, Vector3 bottomRight, Vector3 topLeft, Vector3 topRight, Vector3 normal )
+	{
+		vertices[start + 0] = CreateLiquidGlassFloorVertex( bottomLeft, new Vector2( 0f, 0f ), normal );
+		vertices[start + 1] = CreateLiquidGlassFloorVertex( bottomRight, new Vector2( 1f, 0f ), normal );
+		vertices[start + 2] = CreateLiquidGlassFloorVertex( topLeft, new Vector2( 0f, 1f ), normal );
+		vertices[start + 3] = CreateLiquidGlassFloorVertex( topRight, new Vector2( 1f, 1f ), normal );
+	}
+
+	private static Vertex CreateLiquidGlassFloorVertex( Vector3 position, Vector2 uv, Vector3 normal )
+	{
+		return new Vertex
+		{
+			Position = position,
+			Normal = normal,
+			Tangent = new Vector4( Vector3.Right, 1f ),
+			TexCoord0 = uv,
+			TexCoord1 = uv,
+			Color = Color.White
+		};
+	}
+
+	private static Mesh CreateProjectionSphereMesh( int horizontalFacets, int verticalFacets, float uRepeat, float vRepeat, float radius, string materialPath )
+	{
+		var requestedMaterialPath = string.IsNullOrWhiteSpace( materialPath ) ? "materials/core/shader_editor.vmat" : materialPath;
+		var material = Material.Load( requestedMaterialPath );
+		var materialValid = material.IsValid();
+		if ( !materialValid )
+			material = Material.Load( "materials/core/shader_editor.vmat" );
+
+		Log.Info( $"[TapperProjectionMaterial] path='{requestedMaterialPath}' valid={materialValid} fallback='{(!materialValid ? "materials/core/shader_editor.vmat" : "")}'" );
+		var mesh = new Mesh( material );
+		mesh.CreateVertexBuffer<Vertex>( (horizontalFacets + 1) * (verticalFacets + 1) );
+		mesh.CreateIndexBuffer( horizontalFacets * verticalFacets * 12 );
+		mesh.Bounds = BBox.FromPositionAndSize( Vector3.Zero, radius * 2f );
+
+		mesh.LockVertexBuffer<Vertex>( vertices =>
+		{
+			var index = 0;
+			for ( var v = 0; v <= verticalFacets; v++ )
+			{
+				var vertical = v / (float)verticalFacets;
+				var theta = vertical * MathF.PI;
+				var sinTheta = MathF.Sin( theta );
+				var cosTheta = MathF.Cos( theta );
+
+				for ( var u = 0; u <= horizontalFacets; u++ )
+				{
+					var horizontal = u / (float)horizontalFacets;
+					var phi = horizontal * MathF.PI * 2f;
+					var sinPhi = MathF.Sin( phi );
+					var cosPhi = MathF.Cos( phi );
+					var outward = new Vector3( sinTheta * cosPhi, sinTheta * sinPhi, cosTheta ).Normal;
+					var horizon = 1f - MathF.Abs( vertical - 0.5f ) * 2f;
+					var aurora = MathF.Max( 0f, MathF.Sin( horizontal * MathF.PI * 5.5f + vertical * MathF.PI * 2f ) ) * horizon;
+					var starBand = MathF.Pow( MathF.Max( 0f, MathF.Sin( horizontal * MathF.PI * 73f ) * MathF.Sin( vertical * MathF.PI * 41f ) ), 18f );
+					var fallbackSky = Color.Lerp( new Color( 0.01f, 0.015f, 0.055f, 1f ), new Color( 0.08f, 0.2f, 0.58f, 1f ), horizon * 0.68f );
+					fallbackSky = Color.Lerp( fallbackSky, new Color( 0.02f, 0.9f, 1f, 1f ), aurora * 0.42f );
+					fallbackSky = Color.Lerp( fallbackSky, Color.White, starBand );
+
+					vertices[index++] = new Vertex
+					{
+						Position = outward * radius,
+						Normal = -outward,
+						Tangent = new Vector4( new Vector3( -sinPhi, cosPhi, 0f ).Normal, -1f ),
+						TexCoord0 = new Vector2( horizontal * uRepeat, vertical * vRepeat ),
+						TexCoord1 = new Vector2( horizontal * uRepeat, vertical * vRepeat ) * -1f,
+						Color = fallbackSky
+					};
+				}
+			}
+		} );
+
+		mesh.LockIndexBuffer( indices =>
+		{
+			var index = 0;
+			for ( var v = 0; v < verticalFacets; v++ )
+			{
+				for ( var u = 0; u < horizontalFacets; u++ )
+				{
+					var a = v * (horizontalFacets + 1) + u;
+					var b = v * (horizontalFacets + 1) + u + 1;
+					var c = (v + 1) * (horizontalFacets + 1) + u;
+					var d = (v + 1) * (horizontalFacets + 1) + u + 1;
+
+					indices[index++] = a;
+					indices[index++] = c;
+					indices[index++] = b;
+					indices[index++] = b;
+					indices[index++] = c;
+					indices[index++] = d;
+					indices[index++] = a;
+					indices[index++] = b;
+					indices[index++] = c;
+					indices[index++] = b;
+					indices[index++] = d;
+					indices[index++] = c;
+				}
+			}
+		} );
+
+		return mesh;
+	}
+
+	private Model GetProjectionSunModel()
+	{
+		if ( ProjectionSunModel.IsValid() )
+			return ProjectionSunModel;
+
+		ProjectionSunModel = Model.Builder
+			.AddMesh( CreateProjectionSunMesh( 18, 12, 1f ) )
+			.Create();
+		return ProjectionSunModel;
+	}
+
+	private Model GetProjectionMoonModel()
+	{
+		if ( ProjectionMoonModel.IsValid() )
+			return ProjectionMoonModel;
+
+		ProjectionMoonModel = Model.Builder
+			.AddMesh( CreateProjectionOrbMesh( 18, 12, 1f, new Color( 0.72f, 0.82f, 1f, 1f ), Color.White ) )
+			.Create();
+		return ProjectionMoonModel;
+	}
+
+	private Model GetProjectionStarModel()
+	{
+		if ( ProjectionStarModel.IsValid() )
+			return ProjectionStarModel;
+
+		ProjectionStarModel = Model.Builder
+			.AddMesh( CreateProjectionStarMesh( 1f, Color.White ) )
+			.Create();
+		return ProjectionStarModel;
+	}
+
+	private Model GetProjectionStarGlowModel()
+	{
+		if ( ProjectionStarGlowModel.IsValid() )
+			return ProjectionStarGlowModel;
+
+		ProjectionStarGlowModel = Model.Builder
+			.AddMesh( CreateProjectionStarGlowMesh( 1f, new Color( 0.48f, 0.76f, 1f, 1f ) ) )
+			.Create();
+		return ProjectionStarGlowModel;
+	}
+
+	private Model GetProjectionShootingStarModel()
+	{
+		if ( ProjectionShootingStarModel.IsValid() )
+			return ProjectionShootingStarModel;
+
+		ProjectionShootingStarModel = Model.Builder
+			.AddMesh( CreateProjectionShootingStarMesh( 1f, ShootingStarColor ) )
+			.Create();
+		return ProjectionShootingStarModel;
+	}
+
+	private Model GetProjectionClothesModel( int variant )
+	{
+		if ( ProjectionClothesModels.TryGetValue( variant, out var model ) && model.IsValid() )
+			return model;
+
+		model = Model.Builder
+			.AddMesh( CreateProjectionClothesMesh( variant ) )
+			.Create();
+		ProjectionClothesModels[variant] = model;
+		return model;
+	}
+
+	private static Mesh CreateProjectionSunMesh( int horizontalFacets, int verticalFacets, float radius )
+	{
+		return CreateProjectionOrbMesh( horizontalFacets, verticalFacets, radius, new Color( 1f, 0.34f, 0.04f, 1f ), new Color( 1f, 0.94f, 0.38f, 1f ) );
+	}
+
+	private static Mesh CreateProjectionOrbMesh( int horizontalFacets, int verticalFacets, float radius, Color lowColor, Color highColor )
+	{
+		var material = Material.Load( "materials/core/shader_editor.vmat" );
+		var mesh = new Mesh( material );
+		mesh.CreateVertexBuffer<Vertex>( (horizontalFacets + 1) * (verticalFacets + 1) );
+		mesh.CreateIndexBuffer( horizontalFacets * verticalFacets * 6 );
+		mesh.Bounds = BBox.FromPositionAndSize( Vector3.Zero, radius * 2f );
+
+		mesh.LockVertexBuffer<Vertex>( vertices =>
+		{
+			var index = 0;
+			for ( var v = 0; v <= verticalFacets; v++ )
+			{
+				var vertical = v / (float)verticalFacets;
+				var theta = vertical * MathF.PI;
+				var sinTheta = MathF.Sin( theta );
+				var cosTheta = MathF.Cos( theta );
+
+				for ( var u = 0; u <= horizontalFacets; u++ )
+				{
+					var horizontal = u / (float)horizontalFacets;
+					var phi = horizontal * MathF.PI * 2f;
+					var sinPhi = MathF.Sin( phi );
+					var cosPhi = MathF.Cos( phi );
+					var normal = new Vector3( sinTheta * cosPhi, sinTheta * sinPhi, cosTheta ).Normal;
+
+					vertices[index++] = new Vertex
+					{
+						Position = normal * radius,
+						Normal = normal,
+						Tangent = new Vector4( new Vector3( -sinPhi, cosPhi, 0f ).Normal, 1f ),
+						TexCoord0 = new Vector2( horizontal, vertical ),
+						Color = Color.Lerp( lowColor, highColor, vertical )
+					};
+				}
+			}
+		} );
+
+		mesh.LockIndexBuffer( indices =>
+		{
+			var index = 0;
+			for ( var v = 0; v < verticalFacets; v++ )
+			{
+				for ( var u = 0; u < horizontalFacets; u++ )
+				{
+					var a = v * (horizontalFacets + 1) + u;
+					var b = v * (horizontalFacets + 1) + u + 1;
+					var c = (v + 1) * (horizontalFacets + 1) + u;
+					var d = (v + 1) * (horizontalFacets + 1) + u + 1;
+
+					indices[index++] = a;
+					indices[index++] = b;
+					indices[index++] = c;
+					indices[index++] = b;
+					indices[index++] = d;
+					indices[index++] = c;
+				}
+			}
+		} );
+
+		return mesh;
+	}
+
+	private static Mesh CreateProjectionStarMesh( float size, Color color )
+	{
+		var half = size * 0.5f;
+		var arm = size * 0.18f;
+		var vertices = new List<Vertex>();
+		var indices = new List<int>();
+		AddProjectionPixelRect( vertices, indices, -half, -arm * 0.5f, size, arm, color );
+		AddProjectionPixelRect( vertices, indices, -arm * 0.5f, -half, arm, size, color );
+		AddProjectionPixelRect( vertices, indices, -arm, -arm, arm * 2f, arm * 2f, Color.White );
+		return CreateProjectionFlatMesh( vertices, indices, size );
+	}
+
+	private static Mesh CreateProjectionStarGlowMesh( float size, Color color )
+	{
+		var half = size * 0.5f;
+		var thin = size * 0.1f;
+		var vertices = new List<Vertex>();
+		var indices = new List<int>();
+		AddProjectionPixelRect( vertices, indices, -half, -thin * 0.5f, size, thin, color );
+		AddProjectionPixelRect( vertices, indices, -thin * 0.5f, -half, thin, size, color );
+		AddProjectionPixelRect( vertices, indices, -half * 0.58f, -half * 0.58f, size * 0.18f, size * 0.18f, color );
+		AddProjectionPixelRect( vertices, indices, half * 0.4f, half * 0.4f, size * 0.18f, size * 0.18f, color );
+		return CreateProjectionFlatMesh( vertices, indices, size );
+	}
+
+	private static Mesh CreateProjectionShootingStarMesh( float trailLength, Color color )
+	{
+		var length = MathF.Max( 1f, trailLength );
+		var vertices = new List<Vertex>();
+		var indices = new List<int>();
+		AddProjectionPixelRect( vertices, indices, -length, -0.08f, length, 0.16f, color );
+		AddProjectionPixelRect( vertices, indices, -0.18f, -0.18f, 0.36f, 0.36f, Color.White );
+		AddProjectionPixelRect( vertices, indices, -length * 0.62f, -0.18f, length * 0.5f, 0.08f, new Color( 0.46f, 0.76f, 1f, 1f ) );
+		AddProjectionPixelRect( vertices, indices, -length * 0.62f, 0.1f, length * 0.5f, 0.08f, new Color( 0.46f, 0.76f, 1f, 1f ) );
+		return CreateProjectionFlatMesh( vertices, indices, length + 1f );
+	}
+
+	private static Mesh CreateProjectionBillboardMesh( float size, Color color )
+	{
+		var half = size * 0.5f;
+		var vertices = new List<Vertex>();
+		var indices = new List<int>();
+		AddProjectionPixelRect( vertices, indices, -half, -half, size, size, color );
+		return CreateProjectionFlatMesh( vertices, indices, size );
+	}
+
+	private static Mesh CreateProjectionClothesMesh( int variant )
+	{
+		var vertices = new List<Vertex>();
+		var indices = new List<int>();
+
+		switch ( variant )
+		{
+			case 0:
+				AddProjectionPixelRect( vertices, indices, -0.42f, 0.2f, 0.84f, 0.34f, new Color( 0.9f, 0.2f, 0.36f, 1f ) );
+				AddProjectionPixelRect( vertices, indices, -0.24f, -0.28f, 0.48f, 0.58f, new Color( 0.98f, 0.36f, 0.52f, 1f ) );
+				AddProjectionPixelRect( vertices, indices, -0.64f, -0.08f, 0.22f, 0.34f, new Color( 0.72f, 0.12f, 0.28f, 1f ) );
+				AddProjectionPixelRect( vertices, indices, 0.42f, -0.08f, 0.22f, 0.34f, new Color( 0.72f, 0.12f, 0.28f, 1f ) );
+				break;
+			case 1:
+				AddProjectionPixelRect( vertices, indices, -0.36f, -0.48f, 0.28f, 0.92f, new Color( 0.18f, 0.48f, 1f, 1f ) );
+				AddProjectionPixelRect( vertices, indices, 0.08f, -0.48f, 0.28f, 0.92f, new Color( 0.12f, 0.34f, 0.86f, 1f ) );
+				AddProjectionPixelRect( vertices, indices, -0.36f, 0.28f, 0.72f, 0.18f, new Color( 0.08f, 0.22f, 0.64f, 1f ) );
+				break;
+			case 2:
+				AddProjectionPixelRect( vertices, indices, -0.34f, -0.28f, 0.68f, 0.64f, new Color( 0.16f, 0.86f, 0.58f, 1f ) );
+				AddProjectionPixelRect( vertices, indices, -0.24f, 0.28f, 0.48f, 0.26f, new Color( 0.08f, 0.48f, 0.38f, 1f ) );
+				AddProjectionPixelRect( vertices, indices, -0.56f, -0.14f, 0.22f, 0.44f, new Color( 0.1f, 0.64f, 0.48f, 1f ) );
+				AddProjectionPixelRect( vertices, indices, 0.34f, -0.14f, 0.22f, 0.44f, new Color( 0.1f, 0.64f, 0.48f, 1f ) );
+				break;
+			default:
+				AddProjectionPixelRect( vertices, indices, -0.54f, 0.18f, 0.34f, 0.18f, new Color( 1f, 0.88f, 0.18f, 1f ) );
+				AddProjectionPixelRect( vertices, indices, 0.2f, 0.18f, 0.34f, 0.18f, new Color( 1f, 0.88f, 0.18f, 1f ) );
+				AddProjectionPixelRect( vertices, indices, -0.42f, -0.34f, 0.32f, 0.5f, new Color( 1f, 0.68f, 0.08f, 1f ) );
+				AddProjectionPixelRect( vertices, indices, 0.1f, -0.34f, 0.32f, 0.5f, new Color( 1f, 0.68f, 0.08f, 1f ) );
+				break;
+		}
+
+		return CreateProjectionFlatMesh( vertices, indices, 1.4f );
+	}
+
+	private static void AddProjectionPixelRect( List<Vertex> vertices, List<int> indices, float y, float z, float width, float height, Color color )
+	{
+		var start = vertices.Count;
+		var left = y;
+		var right = y + width;
+		var bottom = z;
+		var top = z + height;
+		var normal = Vector3.Forward;
+		var tangent = new Vector4( Vector3.Left, 1f );
+
+		vertices.Add( new Vertex( new Vector3( 0f, left, bottom ), normal, tangent, new Vector2( 0f, 1f ) ) { Color = color } );
+		vertices.Add( new Vertex( new Vector3( 0f, left, top ), normal, tangent, new Vector2( 0f, 0f ) ) { Color = color } );
+		vertices.Add( new Vertex( new Vector3( 0f, right, top ), normal, tangent, new Vector2( 1f, 0f ) ) { Color = color } );
+		vertices.Add( new Vertex( new Vector3( 0f, right, bottom ), normal, tangent, new Vector2( 1f, 1f ) ) { Color = color } );
+
+		indices.Add( start );
+		indices.Add( start + 1 );
+		indices.Add( start + 2 );
+		indices.Add( start + 2 );
+		indices.Add( start + 3 );
+		indices.Add( start );
+	}
+
+	private static Mesh CreateProjectionFlatMesh( List<Vertex> vertices, List<int> indices, float boundsSize )
+	{
+		var material = Material.Load( "materials/core/shader_editor.vmat" );
+		var mesh = new Mesh( material );
+		mesh.CreateVertexBuffer<Vertex>( vertices.Count );
+		mesh.CreateIndexBuffer( indices.Count );
+		mesh.Bounds = BBox.FromPositionAndSize( Vector3.Zero, boundsSize );
+
+		mesh.LockVertexBuffer<Vertex>( target =>
+		{
+			for ( var i = 0; i < vertices.Count; i++ )
+				target[i] = vertices[i];
+		} );
+
+		mesh.LockIndexBuffer( target =>
+		{
+			for ( var i = 0; i < indices.Count; i++ )
+				target[i] = indices[i];
+		} );
+
+		return mesh;
+	}
+
+	private static float GetVenueCeilingHeight( RuntimeRoomLayout layout )
+	{
+		var enlargedScreenHeight = layout.WallHeight * ArenaWallScreenLayoutMath.ScreenSizeMultiplier;
+		var screenTopClearance = layout.WallHeight * 0.5f + enlargedScreenHeight * 0.5f + 80f;
+		return RuntimeRoomLayoutMath.EffectiveCeilingHeight( layout, screenTopClearance );
+	}
+
+	private void CreateArcadeWallBays( Vector3 stage, RuntimeRoomLayout layout, float ceilingHeight )
+	{
+		var wallCenterZ = ceilingHeight * 0.5f;
+		var frontWallX = RuntimeRoomLayoutMath.FrontWallX( layout );
 		var rearCount = Math.Max( 6, (int)MathF.Ceiling( layout.FloorDepth / ArcadeWallBaySize ) );
 		var rearStep = layout.FloorDepth / rearCount;
 
 		for ( var i = 0; i < rearCount; i++ )
 		{
 			var y = layout.LeftWallY + rearStep * (i + 0.5f);
-			CreateFallbackModelObjectWorld( $"Venue Wall Bay Rear {i:00}", new Vector3( layout.RearWallX, y, wallCenterZ ), new Vector3( 42f, rearStep - 18f, layout.WallHeight * 0.92f ), WallPanelModel, VenueWallColor, false, true );
+			CreateFallbackModelObjectWorld( $"Venue Wall Bay Rear {i:00}", stage + new Vector3( layout.RearWallX, y, wallCenterZ ), new Vector3( VenueWallThickness, rearStep - 18f, ceilingHeight ), GetRearWallPanelModel( i ), GetWallPanelTint( i, VenueWallColor ), false, false );
+			CreateFallbackModelObjectWorld( $"Venue Wall Bay Front {i:00}", stage + new Vector3( frontWallX, y, wallCenterZ ), new Vector3( VenueWallThickness, rearStep - 18f, ceilingHeight ), GetRearWallPanelModel( i + 1 ), GetWallPanelTint( i + 1, VenueWallColor * 0.72f ), false, false );
 		}
 
-		var sideCount = Math.Max( 5, (int)MathF.Ceiling( layout.FloorWidth * 0.82f / ArcadeWallBaySize ) );
-		var sideStartX = roomCenterX - layout.FloorWidth * 0.41f;
-		var sideStep = layout.FloorWidth * 0.82f / sideCount;
+		var sideCount = Math.Max( 5, (int)MathF.Ceiling( layout.FloorWidth / ArcadeWallBaySize ) );
+		var sideStep = layout.FloorWidth / sideCount;
 		for ( var i = 0; i < sideCount; i++ )
 		{
-			var x = sideStartX + sideStep * (i + 0.5f);
-			CreateFallbackModelObjectWorld( $"Venue Wall Bay Left {i:00}", new Vector3( x, layout.LeftWallY, wallCenterZ ), new Vector3( sideStep - 18f, 42f, layout.WallHeight * 0.9f ), WallPanelModel, VenueWallColor, false, true );
-			CreateFallbackModelObjectWorld( $"Venue Wall Bay Right {i:00}", new Vector3( x, layout.RightWallY, wallCenterZ ), new Vector3( sideStep - 18f, 42f, layout.WallHeight * 0.9f ), WallPanelModel, VenueWallColor, false, true );
+			var x = frontWallX + sideStep * (i + 0.5f);
+			CreateFallbackModelObjectWorld( $"Venue Wall Bay Left {i:00}", stage + new Vector3( x, layout.LeftWallY, wallCenterZ ), new Vector3( sideStep - 18f, VenueWallThickness, ceilingHeight ), GetSideWallPanelModel( i ), GetWallPanelTint( i, VenueWallColor * 0.86f ), false, false );
+			CreateFallbackModelObjectWorld( $"Venue Wall Bay Right {i:00}", stage + new Vector3( x, layout.RightWallY, wallCenterZ ), new Vector3( sideStep - 18f, VenueWallThickness, ceilingHeight ), GetSideWallPanelModel( i + 1 ), GetWallPanelTint( i + 1, VenueWallColor * 0.86f ), false, false );
+		}
+
+		CreateArcadeWallTextureDetails( stage, layout, ceilingHeight, rearCount, rearStep, sideCount, sideStep );
+	}
+
+	private void CreateVenueBoundaryWalls( Vector3 stage, RuntimeRoomLayout layout, float ceilingHeight )
+	{
+		var frontWallX = RuntimeRoomLayoutMath.FrontWallX( layout );
+		var roomCenterX = RuntimeRoomLayoutMath.RoomCenterX( layout );
+		var roomCenterY = RuntimeRoomLayoutMath.RoomCenterY( layout );
+		var centerZ = ceilingHeight * 0.5f;
+		var endOverlap = VenueBoundaryWallThickness * 2f;
+
+		CreateVenueBoundaryWall( "Venue Boundary Wall Rear", stage + new Vector3( layout.RearWallX, roomCenterY, centerZ ), new Vector3( VenueBoundaryWallThickness, layout.FloorDepth + endOverlap, ceilingHeight ) );
+		CreateVenueBoundaryWall( "Venue Boundary Wall Front", stage + new Vector3( frontWallX, roomCenterY, centerZ ), new Vector3( VenueBoundaryWallThickness, layout.FloorDepth + endOverlap, ceilingHeight ) );
+		CreateVenueBoundaryWall( "Venue Boundary Wall Left", stage + new Vector3( roomCenterX, layout.LeftWallY, centerZ ), new Vector3( layout.FloorWidth + endOverlap, VenueBoundaryWallThickness, ceilingHeight ) );
+		CreateVenueBoundaryWall( "Venue Boundary Wall Right", stage + new Vector3( roomCenterX, layout.RightWallY, centerZ ), new Vector3( layout.FloorWidth + endOverlap, VenueBoundaryWallThickness, ceilingHeight ) );
+	}
+
+	private GameObject CreateVenueBoundaryWall( string name, Vector3 position, Vector3 size )
+	{
+		var gameObject = FindOrCreate( name );
+		gameObject.LocalPosition = position;
+		gameObject.LocalRotation = Rotation.Identity;
+		gameObject.LocalScale = Vector3.One;
+		gameObject.SetParent( EnsureVenueFallbackRoot(), true );
+
+		var collider = gameObject.Components.GetOrCreate<BoxCollider>();
+		collider.Scale = size;
+		collider.Static = true;
+		collider.IsTrigger = false;
+		return gameObject;
+	}
+
+	private static string GetRearWallPanelModel( int index )
+	{
+		return index % 3 == 0 ? WallMetalPlateModel : WallDividedPanelModel;
+	}
+
+	private static string GetSideWallPanelModel( int index )
+	{
+		return index % 2 == 0 ? WallMetalPlateModel : WallDividedPanelModel;
+	}
+
+	private static Color GetWallPanelTint( int index, Color baseColor )
+	{
+		var lift = index % 2 == 0 ? 1.08f : 0.94f;
+		return baseColor * lift;
+	}
+
+	private void CreateArcadeWallTextureDetails( Vector3 stage, RuntimeRoomLayout layout, float ceilingHeight, int rearCount, float rearStep, int sideCount, float sideStep )
+	{
+		var frontWallX = RuntimeRoomLayoutMath.FrontWallX( layout );
+		var detailColor = new Color( 0.19f, 0.22f, 0.26f, 1f );
+		var cableColor = new Color( 0.1f, 0.18f, 0.23f, 1f );
+		var supportColor = new Color( 0.28f, 0.31f, 0.36f, 1f );
+		var rearDetailX = layout.RearWallX - VenueWallThickness * 0.58f;
+		var frontDetailX = frontWallX + VenueWallThickness * 0.58f;
+		var leftDetailY = layout.LeftWallY + VenueWallThickness * 0.58f;
+		var rightDetailY = layout.RightWallY - VenueWallThickness * 0.58f;
+		var cableZ = ceilingHeight - 95f;
+		var lowerDetailZ = MathF.Min( ceilingHeight - 210f, 290f );
+
+		for ( var i = 0; i < rearCount; i++ )
+		{
+			var y = layout.LeftWallY + rearStep * (i + 0.5f);
+			CreateFallbackModelObjectWorld( $"Venue Wall Detail Rear Cable {i:00}", stage + new Vector3( rearDetailX, y, cableZ ), new Vector3( 18f, rearStep * 0.72f, 58f ), WallCableModel, cableColor, false, false );
+			CreateFallbackModelObjectWorld( $"Venue Wall Detail Front Cable {i:00}", stage + new Vector3( frontDetailX, y, cableZ ), new Vector3( 18f, rearStep * 0.72f, 58f ), WallCableModel, cableColor * 0.82f, false, false );
+
+			if ( i % 2 == 0 )
+				CreateFallbackModelObjectWorld( $"Venue Wall Detail Rear Vent {i:00}", stage + new Vector3( rearDetailX - 4f, y, lowerDetailZ ), new Vector3( 20f, rearStep * 0.42f, 132f ), WallVentModel, detailColor, false, false );
+
+			if ( i % 3 == 1 )
+				CreateFallbackModelObjectWorld( $"Venue Wall Detail Front Access {i:00}", stage + new Vector3( frontDetailX + 4f, y, lowerDetailZ + 22f ), new Vector3( 20f, rearStep * 0.32f, 128f ), WallAccessPointModel, detailColor * 1.12f, false, false );
+
+			if ( i % 3 == 0 )
+			{
+				var edgeY = layout.LeftWallY + rearStep * i;
+				CreateFallbackModelObjectWorld( $"Venue Wall Detail Rear Support {i:00}", stage + new Vector3( rearDetailX - 6f, edgeY, ceilingHeight * 0.5f ), new Vector3( 26f, 56f, ceilingHeight * 0.94f ), WallSupportColumnModel, supportColor, false, false );
+				CreateFallbackModelObjectWorld( $"Venue Wall Detail Front Support {i:00}", stage + new Vector3( frontDetailX + 6f, edgeY, ceilingHeight * 0.5f ), new Vector3( 26f, 56f, ceilingHeight * 0.94f ), WallSupportColumnModel, supportColor * 0.82f, false, false );
+			}
+		}
+
+		for ( var i = 0; i < sideCount; i++ )
+		{
+			var x = frontWallX + sideStep * (i + 0.5f);
+			CreateFallbackModelObjectWorld( $"Venue Wall Detail Left Cable {i:00}", stage + new Vector3( x, leftDetailY, cableZ ), new Vector3( sideStep * 0.72f, 18f, 58f ), WallCableModel, cableColor * 0.92f, false, false, ModelPlacementAnchor.Center, Rotation.FromYaw( 90f ) );
+			CreateFallbackModelObjectWorld( $"Venue Wall Detail Right Cable {i:00}", stage + new Vector3( x, rightDetailY, cableZ ), new Vector3( sideStep * 0.72f, 18f, 58f ), WallCableModel, cableColor * 0.92f, false, false, ModelPlacementAnchor.Center, Rotation.FromYaw( 90f ) );
+
+			if ( i % 3 == 1 )
+			{
+				CreateFallbackModelObjectWorld( $"Venue Wall Detail Left Vent {i:00}", stage + new Vector3( x, leftDetailY + 4f, lowerDetailZ ), new Vector3( sideStep * 0.34f, 20f, 124f ), WallVentModel, detailColor * 0.96f, false, false, ModelPlacementAnchor.Center, Rotation.FromYaw( 90f ) );
+				CreateFallbackModelObjectWorld( $"Venue Wall Detail Right Access {i:00}", stage + new Vector3( x, rightDetailY - 4f, lowerDetailZ + 18f ), new Vector3( sideStep * 0.3f, 20f, 124f ), WallAccessPointModel, detailColor * 1.08f, false, false, ModelPlacementAnchor.Center, Rotation.FromYaw( 90f ) );
+			}
+		}
+	}
+
+	private void CreateArcadeRoofBays( Vector3 stage, RuntimeRoomLayout layout, float ceilingHeight )
+	{
+		var frontWallX = RuntimeRoomLayoutMath.FrontWallX( layout );
+		var xCount = Math.Max( 5, (int)MathF.Ceiling( layout.FloorWidth / ArcadeRoofBaySize ) );
+		var yCount = Math.Max( 5, (int)MathF.Ceiling( layout.FloorDepth / ArcadeRoofBaySize ) );
+		var xStep = layout.FloorWidth / xCount;
+		var yStep = layout.FloorDepth / yCount;
+
+		for ( var x = 0; x < xCount; x++ )
+		{
+			for ( var y = 0; y < yCount; y++ )
+			{
+				var tileX = frontWallX + xStep * (x + 0.5f);
+				var tileY = layout.LeftWallY + yStep * (y + 0.5f);
+				CreateFallbackModelObjectWorld( $"Venue Ceiling Bay {x:00}-{y:00}", stage + new Vector3( tileX, tileY, ceilingHeight ), new Vector3( xStep - 12f, yStep - 12f, VenueRoofThickness ), WallPanelModel, new Color( 0.08f, 0.09f, 0.105f, 1f ), false, false, ModelPlacementAnchor.Ceiling );
+			}
 		}
 	}
 
@@ -338,23 +1204,102 @@ public sealed partial class PhysicalFastestTapperGame
 		return gameObject;
 	}
 
-	private void EnsureVenueWorld()
+	private void EnsureVenueWorld( Vector3 stage, RuntimeRoomLayout layout )
 	{
 		var fallbackRoot = EnsureVenueFallbackRoot();
 		fallbackRoot.Enabled = true;
 
-		CreateVenueBackdrop();
+		CreateVenueBackdrop( stage, layout );
 	}
 
-	private void CreateVenueBackdrop()
+	private void CreateVenueBackdrop( Vector3 stage, RuntimeRoomLayout layout )
 	{
-		CreateOfficeShell();
+		CreateOfficeShell( stage, layout );
 	}
 
-	private void CreateOfficeShell()
+	private void CreateOfficeShell( Vector3 stage, RuntimeRoomLayout layout )
 	{
-		var layout = CurrentRoomLayout;
-		CreateArcadeWallBays( layout );
+		CreateArcadeRoomShell( stage, layout );
+	}
+
+	private void CreateVenueLightRig( Vector3 stage, RuntimeRoomLayout layout, float ceilingHeight )
+	{
+		VenueDynamicLights.Clear();
+
+		var centerX = RuntimeRoomLayoutMath.RoomCenterX( layout );
+		var yCount = Math.Max( 3, (int)MathF.Ceiling( layout.FloorDepth / 900f ) );
+		var yStep = layout.FloorDepth / yCount;
+		for ( var i = 0; i < yCount; i++ )
+		{
+			var y = layout.LeftWallY + yStep * (i + 0.5f);
+			CreateVenuePointLight( $"Venue Light Rig Ambient {i:00}", stage + new Vector3( centerX, y, ceilingHeight - 115f ), new Color( 0.32f, 0.58f, 1f, 1f ), 760f, false, VenueLightRole.Ambient );
+		}
+
+		for ( var i = 0; i < layout.StationCount; i++ )
+		{
+			var stationY = layout.StationY( i );
+			var source = stage + new Vector3( centerX - 120f, stationY, ceilingHeight - 145f );
+			var target = stage + new Vector3( 0f, stationY, 44f );
+			CreateVenueSpotLight( $"Venue Light Rig Station {i:00}", source, target, ReadyStationColor, 980f, VenueLightRole.Station, i );
+		}
+
+		CreateVenuePointLight( "Venue Light Rig Wall Screen", stage + new Vector3( layout.RearWallX - 140f, 0f, Math.Min( ceilingHeight - 120f, layout.WallHeight + 210f ) ), new Color( 0.22f, 0.82f, 1f, 1f ), 940f, false, VenueLightRole.WallScreen );
+	}
+
+	private VenueDynamicLight CreateVenuePointLight( string name, Vector3 position, Color color, float radius, bool shadows, VenueLightRole role, int stationIndex = -1 )
+	{
+		var gameObject = FindOrCreate( name );
+		gameObject.LocalPosition = position;
+		gameObject.LocalRotation = Rotation.Identity;
+		gameObject.LocalScale = Vector3.One;
+		gameObject.SetParent( EnsureVenueFallbackRoot(), true );
+
+		var light = gameObject.Components.GetOrCreate<PointLight>();
+		light.LightColor = color;
+		light.Radius = radius;
+		light.Attenuation = 1f;
+		light.Shadows = shadows;
+
+		var entry = new VenueDynamicLight
+		{
+			GameObject = gameObject,
+			Point = light,
+			Role = role,
+			StationIndex = stationIndex,
+			BaseColor = color,
+			BaseRadius = radius
+		};
+		VenueDynamicLights.Add( entry );
+		return entry;
+	}
+
+	private VenueDynamicLight CreateVenueSpotLight( string name, Vector3 position, Vector3 target, Color color, float radius, VenueLightRole role, int stationIndex )
+	{
+		var gameObject = FindOrCreate( name );
+		gameObject.LocalPosition = position;
+		gameObject.LocalScale = Vector3.One;
+		gameObject.LocalRotation = Rotation.LookAt( (target - position).Normal, Vector3.Up );
+		gameObject.SetParent( EnsureVenueFallbackRoot(), true );
+
+		var light = gameObject.Components.GetOrCreate<SpotLight>();
+		light.LightColor = color;
+		light.Radius = radius;
+		light.Attenuation = 1f;
+		light.ConeInner = 28f;
+		light.ConeOuter = 62f;
+		light.Shadows = false;
+
+		var entry = new VenueDynamicLight
+		{
+			GameObject = gameObject,
+			Spot = light,
+			Role = role,
+			StationIndex = stationIndex,
+			BaseColor = color,
+			BaseRadius = radius
+		};
+		VenueDynamicLights.Add( entry );
+		return entry;
 	}
 
 	private GameObject EnsureVenueFallbackRoot()
@@ -370,6 +1315,13 @@ public sealed partial class PhysicalFastestTapperGame
 	private GameObject CreateFallbackModelObjectWorld( string name, Vector3 position, Vector3 worldSize, string modelPath, Color tint, bool planeCollider, bool boxCollider, ModelPlacementAnchor anchor = ModelPlacementAnchor.Center )
 	{
 		var gameObject = CreateModelObjectWorld( name, position, worldSize, modelPath, tint, planeCollider, boxCollider, anchor );
+		gameObject.SetParent( EnsureVenueFallbackRoot(), true );
+		return gameObject;
+	}
+
+	private GameObject CreateFallbackModelObjectWorld( string name, Vector3 position, Vector3 worldSize, string modelPath, Color tint, bool planeCollider, bool boxCollider, ModelPlacementAnchor anchor, Rotation rotation )
+	{
+		var gameObject = CreateModelObjectWorld( name, position, worldSize, modelPath, tint, planeCollider, boxCollider, anchor, rotation );
 		gameObject.SetParent( EnsureVenueFallbackRoot(), true );
 		return gameObject;
 	}
@@ -411,6 +1363,7 @@ public sealed partial class PhysicalFastestTapperGame
 			var collider = gameObject.Components.GetOrCreate<BoxCollider>();
 			collider.Scale = metrics.Size;
 			collider.Static = true;
+			collider.IsTrigger = false;
 		}
 
 		return gameObject;

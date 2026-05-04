@@ -102,6 +102,26 @@ public static class RuntimeRoomLayoutMath
 		return Math.Clamp( Math.Max( defaultStationCount, playerCount ), 1, 8 );
 	}
 
+	public static float FrontWallX( RuntimeRoomLayout layout )
+	{
+		return layout.RearWallX - layout.FloorWidth;
+	}
+
+	public static float RoomCenterX( RuntimeRoomLayout layout )
+	{
+		return (layout.RearWallX + FrontWallX( layout )) * 0.5f;
+	}
+
+	public static float RoomCenterY( RuntimeRoomLayout layout )
+	{
+		return (layout.LeftWallY + layout.RightWallY) * 0.5f;
+	}
+
+	public static float EffectiveCeilingHeight( RuntimeRoomLayout layout, float minimumClearanceHeight )
+	{
+		return Math.Max( layout.CeilingHeight, minimumClearanceHeight );
+	}
+
 	public static float SafeAxisSize( float value, float fallback )
 	{
 		return Math.Abs( value ) > 0.001f ? Math.Abs( value ) : fallback;

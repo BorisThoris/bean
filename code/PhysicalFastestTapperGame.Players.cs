@@ -181,7 +181,7 @@ public sealed partial class PhysicalFastestTapperGame
 		if ( !IsPrimaryClickPressed() )
 			return;
 
-		if ( !IsThirdPersonLookActive() && TryGetStationIndexUnderCursor( out var stationIndex ) )
+		if ( !IsCameraLookActive() && TryGetStationIndexUnderCursor( out var stationIndex ) )
 		{
 			PressPhysicalButton( stationIndex );
 			return;

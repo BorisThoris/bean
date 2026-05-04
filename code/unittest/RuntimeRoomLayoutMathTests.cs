@@ -44,6 +44,22 @@ public sealed class RuntimeRoomLayoutMathTests
 	}
 
 	[TestMethod]
+	public void RuntimeRoomProvidesFullEnclosureBounds()
+	{
+		var layout = RuntimeRoomLayoutMath.Build( 4 );
+
+		Assert.AreEqual( layout.RearWallX - layout.FloorWidth, RuntimeRoomLayoutMath.FrontWallX( layout ), 0.001f );
+		Assert.AreEqual( layout.RearWallX - layout.FloorWidth * 0.5f, RuntimeRoomLayoutMath.RoomCenterX( layout ), 0.001f );
+		Assert.AreEqual( 0f, RuntimeRoomLayoutMath.RoomCenterY( layout ), 0.001f );
+		Assert.IsLessThan( 0f, RuntimeRoomLayoutMath.FrontWallX( layout ) );
+		Assert.IsGreaterThan( 0f, layout.RearWallX );
+		Assert.AreEqual( layout.FloorWidth, layout.RearWallX - RuntimeRoomLayoutMath.FrontWallX( layout ), 0.001f );
+		Assert.AreEqual( layout.FloorDepth, layout.RightWallY - layout.LeftWallY, 0.001f );
+		Assert.AreEqual( layout.CeilingHeight + 200f, RuntimeRoomLayoutMath.EffectiveCeilingHeight( layout, layout.CeilingHeight + 200f ), 0.001f );
+		Assert.AreEqual( layout.CeilingHeight, RuntimeRoomLayoutMath.EffectiveCeilingHeight( layout, layout.CeilingHeight - 100f ), 0.001f );
+	}
+
+	[TestMethod]
 	public void SegmentLayoutUsesMidpointLengthAndMajorAxis()
 	{
 		var horizontal = RuntimeRoomLayoutMath.BuildSegment( -10f, 20f, 5f, 30f, 20f, 5f );

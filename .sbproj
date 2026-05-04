@@ -1,8 +1,8 @@
 {
-  "Title": "Sweeper",
+  "Title": "Fastet Clicker",
   "Type": "game",
-  "Org": "local",
-  "Ident": "sweeper",
+  "Org": "sadnet",
+  "Ident": "fastest-clicker",
   "Schema": 1,
   "IncludeSourceFiles": false,
   "Resources": null,
@@ -19,12 +19,14 @@
     "RankType": "None",
     "PerMapRanking": false,
     "LeaderboardType": "None",
-    "CsProjName": "",
-    "StartupScene": "scenes/webpanel-paint-test.scene",
+    "CsProjName": "sweeper",
+    "LaunchMode": "QuickPlay",
     "ProjectTemplate": {
       "Icon": "view_in_ar",
       "Order": -10,
       "Description": "The bare minimum required to get started in s&box."
-    }
+    },
+    "StartupScene": "scenes/minimal.scene",
+    "DedicatedServerStartupScene": "scenes/minimal.scene"
   }
 }
