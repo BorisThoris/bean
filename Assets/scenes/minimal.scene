@@ -126,11 +126,9 @@
           "GameDurationSeconds": 10,
           "GameMode": "Classic10",
           "IntermissionSeconds": 5,
-          "ForceLiquidGlassFloorDiagnosticMaterial": false,
-          "LiquidGlassFloorDiagnosticMaterialPath": "materials/projection/endless_projection_tile.vmat",
-          "LiquidGlassFloorHeightAboveFloor": 5,
-          "LiquidGlassFloorMaterialPath": "materials/floor/liquid_glass_floor.vmat",
-          "LiquidGlassFloorTint": "1,1,1,1",
+          "PixelGrassFloorHeightAboveFloor": 5,
+          "PixelGrassFloorMaterialPath": "materials/floor/pixel_grass_floor.vmat",
+          "PixelGrassFloorTint": "1,1,1,1",
           "OnComponentDestroy": null,
           "OnComponentDisabled": null,
           "OnComponentEnabled": null,
@@ -175,7 +173,7 @@
           "TournamentMode": true,
           "TournamentRounds": 5,
           "UseConstructWorld": false,
-          "UseLiquidGlassFloor": true,
+          "UsePixelGrassFloor": true,
           "UseProjectionSphere": true,
           "UseFinalTieBreaker": true
         }

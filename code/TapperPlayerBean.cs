@@ -46,7 +46,6 @@ public sealed class TapperPlayerBean : Component
 	[Property] public CitizenAnimationHelper Animation { get; set; }
 
 	private Rigidbody Body;
-	private PlayerController Controller;
 	private Vector3 LastWishVelocity;
 	private Model CachedMorphModel;
 	private HashSet<string> AvailableMorphs;
@@ -63,8 +62,6 @@ public sealed class TapperPlayerBean : Component
 	{
 		if ( Renderer.IsValid() )
 			Renderer.Enabled = !(IsLocalPlayer && IsFirstPersonView);
-
-		ConfigurePlayerController();
 
 		if ( !IsLocalPlayer )
 		{
@@ -103,29 +100,6 @@ public sealed class TapperPlayerBean : Component
 			.Run();
 
 		return trace.Hit;
-	}
-
-	private void ConfigurePlayerController()
-	{
-		Body ??= Components.Get<Rigidbody>();
-		Controller ??= Components.Get<PlayerController>();
-		if ( !Controller.IsValid() )
-			return;
-
-		Controller.WalkSpeed = WalkSpeed;
-		Controller.RunSpeed = SprintSpeed;
-		Controller.RunByDefault = false;
-		Controller.AltMoveButton = "run";
-		Controller.UseInputControls = false;
-		Controller.UseLookControls = false;
-		Controller.UseCameraControls = false;
-		Controller.UseAnimatorControls = false;
-		Controller.ThirdPerson = false;
-		Controller.CameraOffset = Vector3.Zero;
-		Controller.Body = Body;
-
-		if ( Renderer.IsValid() )
-			Controller.Renderer = Renderer;
 	}
 
 	private Vector3 BuildWishVelocity()

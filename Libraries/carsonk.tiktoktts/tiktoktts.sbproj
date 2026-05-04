@@ -1,0 +1,14 @@
+{
+  "Title": "TikTokTTS",
+  "Type": "library",
+  "Org": "carsonk",
+  "Ident": "tiktoktts",
+  "Tags": "tts texttospeech text-to-speech tiktok",
+  "Schema": 1,
+  "Resources": null,
+  "PackageReferences": [],
+  "EditorReferences": null,
+  "Metadata": {
+    "CsProjName": ""
+  }
+}

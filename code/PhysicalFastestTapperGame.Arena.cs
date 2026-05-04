@@ -88,8 +88,8 @@ public sealed partial class PhysicalFastestTapperGame
 		ProjectionShootingStars.Clear();
 		ProjectionSphereObject = null;
 		ProjectionSphereRenderer = null;
-		LiquidGlassFloorObject = null;
-		LiquidGlassFloorRenderer = null;
+		PixelGrassFloorObject = null;
+		PixelGrassFloorRenderer = null;
 		ProjectionTopLightObject = null;
 		ProjectionTopLightMarkerObject = null;
 		ProjectionTopLightMarkerRenderer = null;
@@ -103,7 +103,7 @@ public sealed partial class PhysicalFastestTapperGame
 		ProjectionMoonGlowRenderer = null;
 		ProjectionMoonLight = null;
 
-		foreach ( var prefix in new[] { "Arena Floor", "Arena Liquid Glass Floor", "Arena Lane Strip", "Arena Key Glow", "Arena Wall Screen", "Arena Wall Fallback", "Arena Title Text", "Arena Timer Text", "Arena Mode Text", "Arena Leaderboard Text", "Arena Wall Station Row", "Leaderboard Tower", "Venue Projection Sphere", "Venue Projection Sky", "Venue Projection Visibility Beacon", "Venue Projection Top Light", "Venue Projection Sun", "Venue Projection Moon", "Venue Projection Star", "Venue Projection Shooting Star", "Venue Projection Clothes", "Venue Boundary Blocker", "Venue Boundary Plane", "Venue Boundary Wall", "Venue Wall Bay", "Venue Wall Detail", "Venue Ceiling Bay", "Venue Arcade Cabinet", "Venue Accent Column", "Venue Corner Glow", "Venue Office", "Venue Backdrop", "Venue High Sky", "Venue Asset", "Venue Speaker Stack", "Venue Light Rig", "Venue Header", "Venue Overhead", "Venue Left Back Wall", "Venue Right Back Wall", "Venue Podium", "Construct Tapper", "Arcade Key", "Arcade Warm", "Arcade Board", "Arcade Station", "Station Arcade", "Station 0 Speed Spark", "Station 1 Speed Spark", "Station 2 Speed Spark", "Station 3 Speed Spark", "Station 4 Speed Spark", "Station 5 Speed Spark", "Station 6 Speed Spark", "Station 7 Speed Spark" } )
+		foreach ( var prefix in new[] { "Arena Floor", "Arena Pixel Grass Floor", "Arena Liquid Glass Floor", "Arena Lane Strip", "Arena Key Glow", "Arena Wall Screen", "Arena Wall Fallback", "Arena Title Text", "Arena Timer Text", "Arena Mode Text", "Arena Leaderboard Text", "Arena Wall Station Row", "Leaderboard Tower", "Venue Projection Sphere", "Venue Projection Sky", "Venue Projection Visibility Beacon", "Venue Projection Top Light", "Venue Projection Sun", "Venue Projection Moon", "Venue Projection Star", "Venue Projection Shooting Star", "Venue Projection Clothes", "Venue Boundary Blocker", "Venue Boundary Plane", "Venue Boundary Wall", "Venue Wall Bay", "Venue Wall Detail", "Venue Ceiling Bay", "Venue Arcade Cabinet", "Venue Accent Column", "Venue Corner Glow", "Venue Office", "Venue Backdrop", "Venue High Sky", "Venue Asset", "Venue Speaker Stack", "Venue Light Rig", "Venue Header", "Venue Overhead", "Venue Left Back Wall", "Venue Right Back Wall", "Venue Podium", "Construct Tapper", "Arcade Key", "Arcade Warm", "Arcade Board", "Arcade Station", "Station Arcade", "Station 0 Speed Spark", "Station 1 Speed Spark", "Station 2 Speed Spark", "Station 3 Speed Spark", "Station 4 Speed Spark", "Station 5 Speed Spark", "Station 6 Speed Spark", "Station 7 Speed Spark" } )
 		{
 			foreach ( var gameObject in Scene.GetAllObjects( true ).Where( x => x.IsValid() && x.Name.StartsWith( prefix ) ).ToArray() )
 				gameObject.Destroy();
@@ -112,38 +112,37 @@ public sealed partial class PhysicalFastestTapperGame
 
 	private void CreateArcadeFloor( Vector3 stage, RuntimeRoomLayout layout )
 	{
-		CreateLiquidGlassFloor( stage, layout );
+		CreatePixelGrassFloor( stage, layout );
 	}
 
-	private void CreateLiquidGlassFloor( Vector3 stage, RuntimeRoomLayout layout )
+	private void CreatePixelGrassFloor( Vector3 stage, RuntimeRoomLayout layout )
 	{
-		if ( !UseLiquidGlassFloor )
+		if ( !UsePixelGrassFloor )
 			return;
 
 		var frontWallX = RuntimeRoomLayoutMath.FrontWallX( layout );
 		var center = stage + new Vector3(
 			frontWallX + layout.FloorWidth * 0.5f,
 			layout.LeftWallY + layout.FloorDepth * 0.5f,
-			layout.FloorThickness + LiquidGlassFloorHeightAboveFloor );
-		var materialPath = ForceLiquidGlassFloorDiagnosticMaterial ? LiquidGlassFloorDiagnosticMaterialPath : LiquidGlassFloorMaterialPath;
-		var mode = ForceLiquidGlassFloorDiagnosticMaterial ? "diagnostic-known-visible-material" : "official-sbox-glass";
+			layout.FloorThickness + PixelGrassFloorHeightAboveFloor );
+		var materialPath = PixelGrassFloorMaterialPath;
 
-		LiquidGlassFloorObject = FindOrCreate( "Arena Liquid Glass Floor" );
-		LiquidGlassFloorObject.LocalPosition = center;
-		LiquidGlassFloorObject.LocalRotation = Rotation.Identity;
-		LiquidGlassFloorObject.LocalScale = Vector3.One;
+		PixelGrassFloorObject = FindOrCreate( "Arena Pixel Grass Floor" );
+		PixelGrassFloorObject.LocalPosition = center;
+		PixelGrassFloorObject.LocalRotation = Rotation.Identity;
+		PixelGrassFloorObject.LocalScale = Vector3.One;
 
-		LiquidGlassFloorRenderer = LiquidGlassFloorObject.Components.GetOrCreate<ModelRenderer>();
-		LiquidGlassFloorRenderer.Enabled = true;
-		LiquidGlassFloorRenderer.Model = GetLiquidGlassFloorModel( layout.FloorWidth, layout.FloorDepth, materialPath );
-		LiquidGlassFloorRenderer.Tint = LiquidGlassFloorTint;
+		PixelGrassFloorRenderer = PixelGrassFloorObject.Components.GetOrCreate<ModelRenderer>();
+		PixelGrassFloorRenderer.Enabled = true;
+		PixelGrassFloorRenderer.Model = GetPixelGrassFloorModel( layout.FloorWidth, layout.FloorDepth, materialPath );
+		PixelGrassFloorRenderer.Tint = PixelGrassFloorTint;
 
-		var collider = LiquidGlassFloorObject.Components.GetOrCreate<BoxCollider>();
+		var collider = PixelGrassFloorObject.Components.GetOrCreate<BoxCollider>();
 		collider.Scale = new Vector3( layout.FloorWidth, layout.FloorDepth, MathF.Max( 8f, layout.FloorThickness ) );
 		collider.Static = true;
 		collider.IsTrigger = false;
 
-		Log.Info( $"[TapperLiquidGlassFloor] mode='{mode}' material='{materialPath}' shader='{(ForceLiquidGlassFloorDiagnosticMaterial ? "diagnostic" : "shaders/glass.shader")}' glassQuality='{(ForceLiquidGlassFloorDiagnosticMaterial ? "diagnostic" : "official-layered-glass")}' translucencyTexture='materials/floor/glass_inputs/glass_translucency.png' floorObjects=1 mesh='single-glass-slab' collision='same-object-box' objectEnabled={LiquidGlassFloorObject.Enabled} rendererEnabled={LiquidGlassFloorRenderer.Enabled} modelValid={LiquidGlassFloorRenderer.Model.IsValid()} position='{center}' heightAboveFloor={LiquidGlassFloorHeightAboveFloor:0.##} size='{layout.FloorWidth:0.#}x{layout.FloorDepth:0.#}' tint='{LiquidGlassFloorTint}' winding='slab-12-triangles' bounds='{layout.FloorWidth:0.#}x{layout.FloorDepth:0.#}x8'" );
+		Log.Info( $"[TapperPixelGrassFloor] material='{materialPath}' shader='shaders/complex.shader' texture='textures/pixel_grass.png' floorObjects=1 mesh='single-textured-slab' collision='same-object-box' objectEnabled={PixelGrassFloorObject.Enabled} rendererEnabled={PixelGrassFloorRenderer.Enabled} modelValid={PixelGrassFloorRenderer.Model.IsValid()} position='{center}' heightAboveFloor={PixelGrassFloorHeightAboveFloor:0.##} size='{layout.FloorWidth:0.#}x{layout.FloorDepth:0.#}' tint='{PixelGrassFloorTint}' winding='slab-12-triangles' bounds='{layout.FloorWidth:0.#}x{layout.FloorDepth:0.#}x8'" );
 	}
 
 	private void CreateArcadeRoomShell( Vector3 stage, RuntimeRoomLayout layout )
@@ -410,29 +409,29 @@ public sealed partial class PhysicalFastestTapperGame
 		return ProjectionSphereModel;
 	}
 
-	private Model GetLiquidGlassFloorModel( float width, float depth, string materialPath )
+	private Model GetPixelGrassFloorModel( float width, float depth, string materialPath )
 	{
 		var roundedWidth = MathF.Round( width );
 		var roundedDepth = MathF.Round( depth );
-		if ( LiquidGlassFloorModel.IsValid()
-			&& Math.Abs( LiquidGlassFloorModelWidth - roundedWidth ) < 0.5f
-			&& Math.Abs( LiquidGlassFloorModelDepth - roundedDepth ) < 0.5f
-			&& string.Equals( LiquidGlassFloorModelMaterialPath, materialPath, StringComparison.OrdinalIgnoreCase ) )
+		if ( PixelGrassFloorModel.IsValid()
+			&& Math.Abs( PixelGrassFloorModelWidth - roundedWidth ) < 0.5f
+			&& Math.Abs( PixelGrassFloorModelDepth - roundedDepth ) < 0.5f
+			&& string.Equals( PixelGrassFloorModelMaterialPath, materialPath, StringComparison.OrdinalIgnoreCase ) )
 		{
-			return LiquidGlassFloorModel;
+			return PixelGrassFloorModel;
 		}
 
-		LiquidGlassFloorModelWidth = roundedWidth;
-		LiquidGlassFloorModelDepth = roundedDepth;
-		LiquidGlassFloorModelMaterialPath = materialPath;
-		LiquidGlassFloorModel = Model.Builder
-			.AddMesh( CreateLiquidGlassFloorMesh( roundedWidth, roundedDepth, materialPath ) )
+		PixelGrassFloorModelWidth = roundedWidth;
+		PixelGrassFloorModelDepth = roundedDepth;
+		PixelGrassFloorModelMaterialPath = materialPath;
+		PixelGrassFloorModel = Model.Builder
+			.AddMesh( CreatePixelGrassFloorMesh( roundedWidth, roundedDepth, materialPath ) )
 			.Create();
 
-		return LiquidGlassFloorModel;
+		return PixelGrassFloorModel;
 	}
 
-	private static Mesh CreateLiquidGlassFloorMesh( float width, float depth, string materialPath )
+	private static Mesh CreatePixelGrassFloorMesh( float width, float depth, string materialPath )
 	{
 		var requestedMaterialPath = string.IsNullOrWhiteSpace( materialPath ) ? "materials/core/shader_editor.vmat" : materialPath;
 		var material = Material.Load( requestedMaterialPath );
@@ -440,7 +439,7 @@ public sealed partial class PhysicalFastestTapperGame
 		if ( !materialValid )
 			material = Material.Load( "materials/core/shader_editor.vmat" );
 
-		Log.Info( $"[TapperLiquidGlassFloorMaterial] path='{requestedMaterialPath}' valid={materialValid} fallback='{(!materialValid ? "materials/core/shader_editor.vmat" : "")}'" );
+		Log.Info( $"[TapperPixelGrassFloorMaterial] path='{requestedMaterialPath}' valid={materialValid} fallback='{(!materialValid ? "materials/core/shader_editor.vmat" : "")}'" );
 
 		var halfWidth = width * 0.5f;
 		var halfDepth = depth * 0.5f;
@@ -452,12 +451,12 @@ public sealed partial class PhysicalFastestTapperGame
 
 		mesh.LockVertexBuffer<Vertex>( vertices =>
 		{
-			WriteLiquidGlassFloorFace( vertices, 0, new Vector3( -halfWidth, -halfDepth, halfThickness ), new Vector3( halfWidth, -halfDepth, halfThickness ), new Vector3( -halfWidth, halfDepth, halfThickness ), new Vector3( halfWidth, halfDepth, halfThickness ), Vector3.Up );
-			WriteLiquidGlassFloorFace( vertices, 4, new Vector3( -halfWidth, halfDepth, -halfThickness ), new Vector3( halfWidth, halfDepth, -halfThickness ), new Vector3( -halfWidth, -halfDepth, -halfThickness ), new Vector3( halfWidth, -halfDepth, -halfThickness ), Vector3.Down );
-			WriteLiquidGlassFloorFace( vertices, 8, new Vector3( -halfWidth, halfDepth, halfThickness ), new Vector3( halfWidth, halfDepth, halfThickness ), new Vector3( -halfWidth, halfDepth, -halfThickness ), new Vector3( halfWidth, halfDepth, -halfThickness ), Vector3.Forward );
-			WriteLiquidGlassFloorFace( vertices, 12, new Vector3( halfWidth, -halfDepth, halfThickness ), new Vector3( -halfWidth, -halfDepth, halfThickness ), new Vector3( halfWidth, -halfDepth, -halfThickness ), new Vector3( -halfWidth, -halfDepth, -halfThickness ), Vector3.Backward );
-			WriteLiquidGlassFloorFace( vertices, 16, new Vector3( halfWidth, halfDepth, halfThickness ), new Vector3( halfWidth, -halfDepth, halfThickness ), new Vector3( halfWidth, halfDepth, -halfThickness ), new Vector3( halfWidth, -halfDepth, -halfThickness ), Vector3.Right );
-			WriteLiquidGlassFloorFace( vertices, 20, new Vector3( -halfWidth, -halfDepth, halfThickness ), new Vector3( -halfWidth, halfDepth, halfThickness ), new Vector3( -halfWidth, -halfDepth, -halfThickness ), new Vector3( -halfWidth, halfDepth, -halfThickness ), Vector3.Left );
+			WritePixelGrassFloorFace( vertices, 0, new Vector3( -halfWidth, -halfDepth, halfThickness ), new Vector3( halfWidth, -halfDepth, halfThickness ), new Vector3( -halfWidth, halfDepth, halfThickness ), new Vector3( halfWidth, halfDepth, halfThickness ), Vector3.Up );
+			WritePixelGrassFloorFace( vertices, 4, new Vector3( -halfWidth, halfDepth, -halfThickness ), new Vector3( halfWidth, halfDepth, -halfThickness ), new Vector3( -halfWidth, -halfDepth, -halfThickness ), new Vector3( halfWidth, -halfDepth, -halfThickness ), Vector3.Down );
+			WritePixelGrassFloorFace( vertices, 8, new Vector3( -halfWidth, halfDepth, halfThickness ), new Vector3( halfWidth, halfDepth, halfThickness ), new Vector3( -halfWidth, halfDepth, -halfThickness ), new Vector3( halfWidth, halfDepth, -halfThickness ), Vector3.Forward );
+			WritePixelGrassFloorFace( vertices, 12, new Vector3( halfWidth, -halfDepth, halfThickness ), new Vector3( -halfWidth, -halfDepth, halfThickness ), new Vector3( halfWidth, -halfDepth, -halfThickness ), new Vector3( -halfWidth, -halfDepth, -halfThickness ), Vector3.Backward );
+			WritePixelGrassFloorFace( vertices, 16, new Vector3( halfWidth, halfDepth, halfThickness ), new Vector3( halfWidth, -halfDepth, halfThickness ), new Vector3( halfWidth, halfDepth, -halfThickness ), new Vector3( halfWidth, -halfDepth, -halfThickness ), Vector3.Right );
+			WritePixelGrassFloorFace( vertices, 20, new Vector3( -halfWidth, -halfDepth, halfThickness ), new Vector3( -halfWidth, halfDepth, halfThickness ), new Vector3( -halfWidth, -halfDepth, -halfThickness ), new Vector3( -halfWidth, halfDepth, -halfThickness ), Vector3.Left );
 		} );
 
 		mesh.LockIndexBuffer( indices =>
@@ -478,15 +477,15 @@ public sealed partial class PhysicalFastestTapperGame
 		return mesh;
 	}
 
-	private static void WriteLiquidGlassFloorFace( Span<Vertex> vertices, int start, Vector3 bottomLeft, Vector3 bottomRight, Vector3 topLeft, Vector3 topRight, Vector3 normal )
+	private static void WritePixelGrassFloorFace( Span<Vertex> vertices, int start, Vector3 bottomLeft, Vector3 bottomRight, Vector3 topLeft, Vector3 topRight, Vector3 normal )
 	{
-		vertices[start + 0] = CreateLiquidGlassFloorVertex( bottomLeft, new Vector2( 0f, 0f ), normal );
-		vertices[start + 1] = CreateLiquidGlassFloorVertex( bottomRight, new Vector2( 1f, 0f ), normal );
-		vertices[start + 2] = CreateLiquidGlassFloorVertex( topLeft, new Vector2( 0f, 1f ), normal );
-		vertices[start + 3] = CreateLiquidGlassFloorVertex( topRight, new Vector2( 1f, 1f ), normal );
+		vertices[start + 0] = CreatePixelGrassFloorVertex( bottomLeft, new Vector2( 0f, 0f ), normal );
+		vertices[start + 1] = CreatePixelGrassFloorVertex( bottomRight, new Vector2( 1f, 0f ), normal );
+		vertices[start + 2] = CreatePixelGrassFloorVertex( topLeft, new Vector2( 0f, 1f ), normal );
+		vertices[start + 3] = CreatePixelGrassFloorVertex( topRight, new Vector2( 1f, 1f ), normal );
 	}
 
-	private static Vertex CreateLiquidGlassFloorVertex( Vector3 position, Vector2 uv, Vector3 normal )
+	private static Vertex CreatePixelGrassFloorVertex( Vector3 position, Vector2 uv, Vector3 normal )
 	{
 		return new Vertex
 		{

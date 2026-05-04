@@ -38,6 +38,9 @@
 
 	<ItemGroup>
 		<ProjectReference Include="../Libraries/bytesizedfox.sharptalktts/Code/sharptalktts.csproj" />
+		<ProjectReference Include="../Libraries/carsonk.tiktoktts/Code/tiktoktts.csproj" />
+		<ProjectReference Include="../Libraries/facepunch.playercontroller/Code/playercontroller.csproj" />
+		<ProjectReference Include="../Libraries/facepunch.shatterglass/Code/shatterglass.csproj" />
 		<ProjectReference Include="../../../addons/base/code/Base Library.csproj" />
 	</ItemGroup>
 

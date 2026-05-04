@@ -68,23 +68,6 @@ public sealed partial class PhysicalFastestTapperGame
 		collider.Static = false;
 		collider.IsTrigger = false;
 
-		var playerController = bean.Components.GetOrCreate<PlayerController>();
-		playerController.Body = body;
-		playerController.Renderer = renderer;
-		playerController.BodyHeight = 72f;
-		playerController.BodyRadius = 16f;
-		playerController.BodyMass = 500f;
-		playerController.WalkSpeed = 185f;
-		playerController.RunSpeed = 300f;
-		playerController.RunByDefault = false;
-		playerController.AltMoveButton = "run";
-		playerController.UseInputControls = false;
-		playerController.UseLookControls = false;
-		playerController.UseCameraControls = false;
-		playerController.UseAnimatorControls = false;
-		playerController.ThirdPerson = false;
-		playerController.CameraOffset = Vector3.Zero;
-
 		var walkMode = bean.Components.GetOrCreate<MoveModeWalk>();
 		walkMode.StepUpHeight = 18f;
 		walkMode.StepDownHeight = 18f;
