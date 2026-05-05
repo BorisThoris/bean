@@ -17,6 +17,10 @@
     <Project Path="Libraries/facepunch.playercontroller/Editor/playercontroller.editor.csproj" />
     <Project Path="Libraries/facepunch.playercontroller/UnitTests/playercontroller.unittest.csproj" />
     <Project Path="Libraries/facepunch.shatterglass/Code/shatterglass.csproj" />
+    <Project Path="Libraries/jtc.mcp-server/Editor/mcp-server.editor.csproj" />
+    <Project Path="Libraries/nawar.foliagepainter/Code/foliagepainter.csproj" />
+    <Project Path="Libraries/nawar.foliagepainter/Editor/foliagepainter.editor.csproj" />
+    <Project Path="Libraries/nawar.foliagepainter/UnitTests/foliagepainter.unittest.csproj" />
   </Folder>
   <Folder Name="/Tools/">
     <Project Path="../../addons/tools/Code/Base Editor Library.csproj" />

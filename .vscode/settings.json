@@ -17,7 +17,9 @@
     "E:\\SteamLibrary\\steamapps\\common\\sbox\\samples\\sweeper\\Libraries\\bytesizedfox.sharptalktts\\Assets\\shaders",
     "E:\\SteamLibrary\\steamapps\\common\\sbox\\samples\\sweeper\\Libraries\\carsonk.tiktoktts\\Assets\\shaders",
     "E:\\SteamLibrary\\steamapps\\common\\sbox\\samples\\sweeper\\Libraries\\facepunch.playercontroller\\Assets\\shaders",
-    "E:\\SteamLibrary\\steamapps\\common\\sbox\\samples\\sweeper\\Libraries\\facepunch.shatterglass\\Assets\\shaders"
+    "E:\\SteamLibrary\\steamapps\\common\\sbox\\samples\\sweeper\\Libraries\\facepunch.shatterglass\\Assets\\shaders",
+    "E:\\SteamLibrary\\steamapps\\common\\sbox\\samples\\sweeper\\Libraries\\jtc.mcp-server\\Assets\\shaders",
+    "E:\\SteamLibrary\\steamapps\\common\\sbox\\samples\\sweeper\\Libraries\\nawar.foliagepainter\\Assets\\shaders"
   ],
   "slang.predefinedMacros": [],
   "slang.workspaceFlavor": "vfx"

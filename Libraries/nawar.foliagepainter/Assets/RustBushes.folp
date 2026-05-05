@@ -1,0 +1,282 @@
+{
+  "UseGlobalPlacement": true,
+  "GlobalPlacementOverride": {
+    "MaxNormal": 0.9,
+    "AlignToNormal": false,
+    "PitchAlignment": "0.5 1",
+    "RandomYaw": true,
+    "EmbedAmount": "-2 0",
+    "SpacingAmount": "20 100",
+    "IncludeBoundsInSpacing": false
+  },
+  "UseGlobalObjectSettings": true,
+  "GlobalObjectOverride": {
+    "CountMultiplier": "0.8 1.2",
+    "MaxPerStroke": "5",
+    "Scale": "0.8 1.2",
+    "Tint": {
+      "blend": "Linear",
+      "color": [
+        {
+          "t": 0.09243698,
+          "c": "0.35294,0.39608,0.14118,1"
+        },
+        {
+          "t": 0.60294116,
+          "c": "0.29481,0.32558,0.11812,1"
+        },
+        {
+          "t": 0.9117647,
+          "c": "0.39608,0.28987,0.14118,1"
+        }
+      ],
+      "alpha": [
+        {
+          "t": 0,
+          "a": 1
+        },
+        {
+          "t": 1,
+          "a": 1
+        }
+      ]
+    }
+  },
+  "Mode": "Model",
+  "FoliagePrefabs": [],
+  "FoliageModels": [
+    {
+      "Model": "models/rust_nature/overgrowth/creeping_tree_a.vmdl",
+      "Settings": {
+        "CountMultiplier": "1",
+        "MaxPerStroke": "0",
+        "Scale": "0.8 1.3",
+        "Tint": {
+          "blend": "Linear",
+          "color": [],
+          "alpha": []
+        }
+      },
+      "Placement": {
+        "MaxNormal": 1,
+        "AlignToNormal": true,
+        "PitchAlignment": "0 1",
+        "RandomYaw": true,
+        "EmbedAmount": "0",
+        "SpacingAmount": "0",
+        "IncludeBoundsInSpacing": false
+      }
+    },
+    {
+      "Model": "models/rust_nature/overgrowth/creeping_tree_b.vmdl",
+      "Settings": {
+        "CountMultiplier": "1",
+        "MaxPerStroke": "0",
+        "Scale": "0.8 1.2",
+        "Tint": {
+          "blend": "Linear",
+          "color": [],
+          "alpha": []
+        }
+      },
+      "Placement": {
+        "MaxNormal": 1,
+        "AlignToNormal": true,
+        "PitchAlignment": "0 1",
+        "RandomYaw": true,
+        "EmbedAmount": "0",
+        "SpacingAmount": "0",
+        "IncludeBoundsInSpacing": false
+      }
+    },
+    {
+      "Model": "models/rust_nature/overgrowth/creeping_tree_c.vmdl",
+      "Settings": {
+        "CountMultiplier": "1",
+        "MaxPerStroke": "0",
+        "Scale": "0.8 1.2",
+        "Tint": {
+          "blend": "Linear",
+          "color": [],
+          "alpha": []
+        }
+      },
+      "Placement": {
+        "MaxNormal": 1,
+        "AlignToNormal": true,
+        "PitchAlignment": "0 1",
+        "RandomYaw": true,
+        "EmbedAmount": "0",
+        "SpacingAmount": "0",
+        "IncludeBoundsInSpacing": false
+      }
+    },
+    {
+      "Model": "models/rust_nature/overgrowth/creeping_tree_conifer_a.vmdl",
+      "Settings": {
+        "CountMultiplier": "1",
+        "MaxPerStroke": "0",
+        "Scale": "0.8 1.2",
+        "Tint": {
+          "blend": "Linear",
+          "color": [],
+          "alpha": []
+        }
+      },
+      "Placement": {
+        "MaxNormal": 1,
+        "AlignToNormal": true,
+        "PitchAlignment": "0 1",
+        "RandomYaw": true,
+        "EmbedAmount": "0",
+        "SpacingAmount": "0",
+        "IncludeBoundsInSpacing": false
+      }
+    },
+    {
+      "Model": "models/rust_nature/overgrowth/creeping_tree_d.vmdl",
+      "Settings": {
+        "CountMultiplier": "1",
+        "MaxPerStroke": "0",
+        "Scale": "0.8 1.2",
+        "Tint": {
+          "blend": "Linear",
+          "color": [],
+          "alpha": []
+        }
+      },
+      "Placement": {
+        "MaxNormal": 1,
+        "AlignToNormal": true,
+        "PitchAlignment": "0 1",
+        "RandomYaw": true,
+        "EmbedAmount": "0",
+        "SpacingAmount": "0",
+        "IncludeBoundsInSpacing": false
+      }
+    },
+    {
+      "Model": "models/rust_nature/overgrowth/creeping_tree_e.vmdl",
+      "Settings": {
+        "CountMultiplier": "1",
+        "MaxPerStroke": "0",
+        "Scale": "0.8 1.2",
+        "Tint": {
+          "blend": "Linear",
+          "color": [],
+          "alpha": []
+        }
+      },
+      "Placement": {
+        "MaxNormal": 1,
+        "AlignToNormal": true,
+        "PitchAlignment": "0 1",
+        "RandomYaw": true,
+        "EmbedAmount": "0",
+        "SpacingAmount": "0",
+        "IncludeBoundsInSpacing": false
+      }
+    },
+    {
+      "Model": "models/rust_nature/bush_spicebush/bush_spicebush_a.vmdl",
+      "Settings": {
+        "CountMultiplier": "1",
+        "MaxPerStroke": "0",
+        "Scale": "0.8 1.2",
+        "Tint": {
+          "blend": "Linear",
+          "color": [],
+          "alpha": []
+        }
+      },
+      "Placement": {
+        "MaxNormal": 1,
+        "AlignToNormal": true,
+        "PitchAlignment": "0 1",
+        "RandomYaw": true,
+        "EmbedAmount": "0",
+        "SpacingAmount": "0",
+        "IncludeBoundsInSpacing": false
+      }
+    },
+    {
+      "Model": "models/rust_nature/bush_willow/bush_willow_a.vmdl",
+      "Settings": {
+        "CountMultiplier": "1",
+        "MaxPerStroke": "0",
+        "Scale": "0.8 1.2",
+        "Tint": {
+          "blend": "Linear",
+          "color": [],
+          "alpha": []
+        }
+      },
+      "Placement": {
+        "MaxNormal": 1,
+        "AlignToNormal": true,
+        "PitchAlignment": "0 1",
+        "RandomYaw": true,
+        "EmbedAmount": "0",
+        "SpacingAmount": "0",
+        "IncludeBoundsInSpacing": false
+      }
+    },
+    {
+      "Model": "models/rust_nature/overgrowth/bush_dead.vmdl",
+      "Settings": {
+        "CountMultiplier": "1",
+        "MaxPerStroke": "0",
+        "Scale": "0.8 1.2",
+        "Tint": {
+          "blend": "Linear",
+          "color": [],
+          "alpha": []
+        }
+      },
+      "Placement": {
+        "MaxNormal": 1,
+        "AlignToNormal": true,
+        "PitchAlignment": "0 1",
+        "RandomYaw": true,
+        "EmbedAmount": "0",
+        "SpacingAmount": "0",
+        "IncludeBoundsInSpacing": false
+      }
+    },
+    {
+      "Model": "models/rust_nature/overgrowth/bush_medium_dense.vmdl",
+      "Settings": {
+        "CountMultiplier": "1",
+        "MaxPerStroke": "0",
+        "Scale": "0.8 1.2",
+        "Tint": {
+          "blend": "Linear",
+          "color": [],
+          "alpha": []
+        }
+      },
+      "Placement": {
+        "MaxNormal": 1,
+        "AlignToNormal": true,
+        "PitchAlignment": "0 1",
+        "RandomYaw": true,
+        "EmbedAmount": "0",
+        "SpacingAmount": "0",
+        "IncludeBoundsInSpacing": false
+      }
+    }
+  ],
+  "__references": [
+    "rust.bush_dead#25054",
+    "rust.bush_medium_dense#25059",
+    "rust.bush_spicebush_a#25041",
+    "rust.bush_willow_a#25044",
+    "rust.creeping_tree_a#25081",
+    "rust.creeping_tree_b#25082",
+    "rust.creeping_tree_c#25083",
+    "rust.creeping_tree_conifer_a#25084",
+    "rust.creeping_tree_d#25085",
+    "rust.creeping_tree_e#25086"
+  ],
+  "__version": 0
+}

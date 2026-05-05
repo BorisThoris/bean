@@ -20,6 +20,7 @@ public sealed partial class PhysicalFastestTapperGame : Component, Component.INe
 	[Property] public bool UseFinalTieBreaker { get; set; } = true;
 	[Property] public bool DebugVisuals { get; set; } = false;
 	[Property] public bool EnableFocusWindows { get; set; } = true;
+	[Property] public bool UseAuthoredScene { get; set; } = true;
 	[Property] public bool UseConstructWorld { get; set; } = false;
 	[Property] public string ConstructMapName { get; set; } = "facepunch.construct";
 	[Property] public bool UsePixelGrassFloor { get; set; } = true;
@@ -71,8 +72,6 @@ public sealed partial class PhysicalFastestTapperGame : Component, Component.INe
 	private static readonly Color HotButtonColor = new( 1f, 0.76f, 0.05f, 1f );
 	private static readonly Color ReadyStationColor = new( 0.2f, 0.82f, 1f, 1f );
 	private static readonly Color WinnerStationColor = new( 1f, 0.84f, 0.18f, 1f );
-	private static readonly Color ClaimFrameIdleColor = new( 0.18f, 0.72f, 1f, 1f );
-	private static readonly Color ClaimFrameActiveColor = new( 0.2f, 1f, 0.42f, 1f );
 	private static readonly Color VenueWallColor = new( 0.13f, 0.145f, 0.165f, 1f );
 
 	private readonly List<TapperStation> Stations = new();
@@ -94,6 +93,7 @@ public sealed partial class PhysicalFastestTapperGame : Component, Component.INe
 	private float ThirdPersonCameraYaw = 35f;
 	private float ThirdPersonCameraPitch = 18f;
 	private float BeanCameraDistance = ThirdPersonCameraDistanceDefault;
+	private float LastCameraDebugLogTime = -10f;
 	private SceneMap VenueSceneMap;
 	private bool VenueMapLoaded;
 	private string VenueWorldStatus = "GENERATED FALLBACK";
@@ -143,7 +143,7 @@ public sealed partial class PhysicalFastestTapperGame : Component, Component.INe
 	[Sync] private int SyncedGameMode { get; set; }
 	[Sync] private int SyncedTournamentRound { get; set; } = 1;
 	[Sync] private int SyncedEventPhase { get; set; }
-	[Sync] private int SyncedStationCapacity { get; set; } = 4;
+	[Sync] private int SyncedStationCapacity { get; set; }
 	[Sync] private string SyncedResultOrder { get; set; } = "";
 	[Sync] private NetDictionary<string, int> SyncedScores { get; set; } = new();
 	[Sync] private NetDictionary<string, int> SyncedStations { get; set; } = new();
@@ -177,6 +177,7 @@ public sealed partial class PhysicalFastestTapperGame : Component, Component.INe
 			EnsureArena();
 			EnsureLocalFallbackPlayer();
 			EnsurePlayerBeans();
+			ConfigureCamera();
 			EnterWaiting();
 		}
 		catch ( Exception exception )

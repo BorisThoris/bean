@@ -26,7 +26,7 @@
       "Order": -10,
       "Description": "The bare minimum required to get started in s&box."
     },
-    "StartupScene": "scenes/minimal.scene",
-    "DedicatedServerStartupScene": "scenes/minimal.scene"
+    "StartupScene": "test.scene",
+    "DedicatedServerStartupScene": "test.scene"
   }
 }

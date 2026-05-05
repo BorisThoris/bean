@@ -83,6 +83,11 @@ public sealed partial class PhysicalFastestTapperGame
 		public GameObject Bean;
 		public TapperPlayerBean BeanController;
 		public TextRenderer BeanNameText;
+		public string SpawnPointName;
+		public bool HasAppliedSpawn;
+		public Vector3 AuthoredSpawnPosition;
+		public Rotation AuthoredSpawnRotation = Rotation.Identity;
+		public float SpawnLockUntilTime;
 		public int Score;
 		public int BestScore;
 		public int SessionWins;
@@ -110,6 +115,7 @@ public sealed partial class PhysicalFastestTapperGame
 		public float LastSoundTime;
 		public bool Ready;
 		public bool Spectating;
+		public bool WaitingForSpawn;
 		public string LastInteractionMessage = "";
 		public float LastInteractionMessageTime;
 		public Vector3 LookDirection = Vector3.Forward;
@@ -124,19 +130,8 @@ public sealed partial class PhysicalFastestTapperGame
 		public GameObject Root;
 		public GameObject Button;
 		public GameObject ButtonHitbox;
-		public GameObject[] ClaimFrame;
-		public GameObject ProgressFill;
-		public GameObject HeatFill;
 		public ModelRenderer ButtonRenderer;
-		public ModelRenderer[] ClaimFrameRenderers;
-		public ModelRenderer HeatFillRenderer;
 		public Vector3 ButtonBaseScale;
-		public Vector3[] ClaimFrameBaseScales;
-		public Vector3 ProgressBaseScale;
-		public Vector3 ProgressBasePosition;
-		public Vector3 HeatBaseScale;
-		public Vector3 HeatBasePosition;
-		public float BarModelHalfExtentX;
 		public float ButtonPunch;
 		public float FinishFlash;
 	}

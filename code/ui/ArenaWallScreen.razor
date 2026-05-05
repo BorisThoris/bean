@@ -18,8 +18,8 @@
 		var top = leaders.FirstOrDefault();
 		var rest = leaders.Skip( 1 ).Take( 3 ).ToArray();
 		var hasLeader = leaders.Length > 0;
-		var maxScore = Math.Max( 1, leaders.Length > 0 ? leaders.Max( x => x.Score ) : state.Stations.Max( x => x.Score ) );
-		var maxSpeed = Math.Max( 1f, leaders.Length > 0 ? leaders.Max( x => x.PeakSpeed ) : state.Stations.Max( x => x.Speed ) );
+		var maxScore = Math.Max( 1, leaders.Length > 0 ? leaders.Max( x => x.Score ) : (state.Stations.Length > 0 ? state.Stations.Max( x => x.Score ) : 0) );
+		var maxSpeed = Math.Max( 1f, leaders.Length > 0 ? leaders.Max( x => x.PeakSpeed ) : (state.Stations.Length > 0 ? state.Stations.Max( x => x.Speed ) : 0f) );
 		var stationCountClass = $"station-count-{Math.Clamp( state.Stations.Length, 1, 8 )}";
 		var headlineClass = $"headline {GetHeadlineFitClass( state.Headline )}";
 		var titleClass = $"title {GetSingleLineFitClass( state.Title, 18 )}";

@@ -97,7 +97,7 @@ public sealed partial class PhysicalFastestTapperGame
 
 	private void EnsureLocalFallbackPlayer()
 	{
-		if ( Players.Count == 0 && ShouldUseLocalFallbackPlayer() )
+		if ( Players.Count == 0 )
 			EnsurePlayer( Connection.Local );
 	}
 
@@ -127,6 +127,7 @@ public sealed partial class PhysicalFastestTapperGame
 
 		Players.Add( player );
 		PlayersByConnection[key] = player;
+		EnsureStationCapacityForLobby();
 		EnsurePlayerBean( player );
 		return player;
 	}

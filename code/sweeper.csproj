@@ -42,6 +42,7 @@
 		<ProjectReference Include="../Libraries/facepunch.playercontroller/Code/playercontroller.csproj" />
 		<ProjectReference Include="../Libraries/facepunch.shatterglass/Code/shatterglass.csproj" />
 		<ProjectReference Include="../../../addons/base/code/Base Library.csproj" />
+		<ProjectReference Include="../Libraries/nawar.foliagepainter/Code/foliagepainter.csproj" />
 	</ItemGroup>
 
 </Project>

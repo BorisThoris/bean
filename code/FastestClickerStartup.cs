@@ -8,12 +8,6 @@ public sealed class FastestClickerStartup : GameObjectSystem<FastestClickerStart
 
 	void ISceneStartup.OnHostInitialize()
 	{
-		if ( Scene.Get<PhysicalFastestTapperGame>().IsValid() )
-			return;
-
-		var load = new SceneLoadOptions();
-		load.IsAdditive = true;
-		load.SetScene( "scenes/minimal.scene" );
-		Scene.Load( load );
+		Log.Info( "[TapperStartup] mode='direct-scene' scene='test.scene' additiveLoader=False" );
 	}
 }

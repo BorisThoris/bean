@@ -2,16 +2,28 @@ using Sandbox;
 using Sandbox.Citizen;
 using Sandbox.Movement;
 using System;
+using System.Linq;
 
 public sealed partial class PhysicalFastestTapperGame
 {
+	private const float BeanCapsuleRadius = 16f;
+	private const float BeanCapsuleStartZ = 8f;
+	private const float BeanCapsuleEndZ = 76f;
+	private const float BeanMinimumSpawnZ = 84f;
+	private const float BeanVisualFloorClearance = 46f;
+	private const float AuthoredSpawnLockSeconds = 3f;
+
 	private void EnsurePlayerBeans()
 	{
 		for ( var i = 0; i < Players.Count; i++ )
 		{
 			var player = Players[i];
 			EnsurePlayerBean( player );
+			if ( !UseAuthoredScene )
+				EnsureBeanAboveFloor( player );
 			UpdatePlayerBeanVisuals( player, i );
+			if ( UseAuthoredScene && IsAuthoritativeInstance() )
+				EnforceAuthoredSpawnLock( player );
 		}
 	}
 
@@ -20,14 +32,65 @@ public sealed partial class PhysicalFastestTapperGame
 		if ( player is null )
 			return;
 
-		if ( player.Bean.IsValid() && player.BeanController.IsValid() )
+		player.ConnectionKey ??= ConnectionKey( player.Connection );
+
+		if ( Networking.IsActive && !IsAuthoritativeInstance() )
+		{
+			if ( TryBindRuntimeBean( player ) )
+				player.WaitingForSpawn = false;
+			else if ( !player.WaitingForSpawn )
+			{
+				player.WaitingForSpawn = true;
+				Log.Info( $"[TapperBeanSpawn] mode='waiting-for-network-bean' player='{player.Name}' key='{player.ConnectionKey}'" );
+			}
+
+			return;
+		}
+
+		var existingBean = player.Bean.IsValid() && player.BeanController.IsValid();
+		if ( UseAuthoredScene && existingBean )
+		{
+			if ( !TryAssignAuthoredSpawnPoint( player, Players.IndexOf( player ), out var existingSpawnPoint ) )
+			{
+				if ( !player.WaitingForSpawn )
+					Log.Warning( $"[TapperBeanSpawn] mode='authored-queued' player='{player.Name}' key='{player.ConnectionKey}' spawnPoints={GetAuthoredSpawnPoints().Length}" );
+
+				player.WaitingForSpawn = true;
+				return;
+			}
+
+			player.WaitingForSpawn = false;
+			var spawnChanged = !string.Equals( player.SpawnPointName, existingSpawnPoint.Name, StringComparison.Ordinal );
+			if ( !player.HasAppliedSpawn || spawnChanged )
+				ApplyBeanSpawnTransform( player, player.Bean, existingSpawnPoint, true );
+			else
+				EnforceAuthoredSpawnLock( player );
+
+			return;
+		}
+
+		if ( existingBean )
 			return;
 
-		player.ConnectionKey ??= ConnectionKey( player.Connection );
-		var bean = FindOrCreate( $"Tapper Bean {player.ConnectionKey}" );
-		bean.LocalPosition = GetBeanSpawnPosition( Players.IndexOf( player ) );
-		bean.LocalRotation = Rotation.FromYaw( 0f );
+		if ( !TryGetBeanSpawnTransform( player, Players.IndexOf( player ), out var spawnPosition, out var spawnRotation, out var spawnPointName ) )
+		{
+			if ( !player.WaitingForSpawn )
+				Log.Warning( $"[TapperBeanSpawn] mode='authored-queued' player='{player.Name}' key='{player.ConnectionKey}' spawnPoints={GetAuthoredSpawnPoints().Length}" );
+
+			player.WaitingForSpawn = true;
+			return;
+		}
+
+		if ( player.WaitingForSpawn )
+			Log.Info( $"[TapperBeanSpawn] mode='authored-queue-resumed' player='{player.Name}' key='{player.ConnectionKey}' position='{spawnPosition}'" );
+
+		player.WaitingForSpawn = false;
+		player.SpawnPointName = spawnPointName;
+		DestroyStalePlayerBeanObjects( player.ConnectionKey );
+
+		var bean = new GameObject( false, $"Tapper Bean {player.ConnectionKey}" );
 		bean.LocalScale = Vector3.One;
+		TeleportBeanToSpawn( bean, spawnPosition, spawnRotation );
 
 		var clothing = ClothingContainer.CreateFromLocalUser();
 		var renderer = bean.Components.GetOrCreate<SkinnedModelRenderer>();
@@ -62,9 +125,9 @@ public sealed partial class PhysicalFastestTapperGame
 		};
 
 		var collider = bean.Components.GetOrCreate<CapsuleCollider>();
-		collider.Radius = 16f;
-		collider.Start = Vector3.Up * 8f;
-		collider.End = Vector3.Up * 76f;
+		collider.Radius = BeanCapsuleRadius;
+		collider.Start = Vector3.Up * BeanCapsuleStartZ;
+		collider.End = Vector3.Up * BeanCapsuleEndZ;
 		collider.Static = false;
 		collider.IsTrigger = false;
 
@@ -76,7 +139,9 @@ public sealed partial class PhysicalFastestTapperGame
 		var controller = bean.Components.GetOrCreate<TapperPlayerBean>();
 		controller.Configure( IsLocalPlayer( player ), renderer, animation );
 
-		var labelObject = FindOrCreate( $"Tapper Bean {player.ConnectionKey} Name" );
+		TeleportBeanToSpawn( bean, spawnPosition, spawnRotation );
+
+		var labelObject = new GameObject( false, $"Tapper Bean {player.ConnectionKey} Name" );
 		labelObject.SetParent( bean, true );
 		labelObject.LocalPosition = new Vector3( 0f, 0f, 92f );
 		labelObject.LocalRotation = Rotation.FromYaw( 35f );
@@ -84,10 +149,154 @@ public sealed partial class PhysicalFastestTapperGame
 		var label = labelObject.Components.GetOrCreate<TextRenderer>();
 		label.Scale = 0.24f;
 		label.Color = Color.White;
+		labelObject.Enabled = true;
 
 		player.Bean = bean;
 		player.BeanController = controller;
 		player.BeanNameText = label;
+		player.HasAppliedSpawn = UseAuthoredScene;
+		if ( UseAuthoredScene )
+		{
+			player.AuthoredSpawnPosition = spawnPosition;
+			player.AuthoredSpawnRotation = spawnRotation;
+			player.SpawnLockUntilTime = RealTime.Now + AuthoredSpawnLockSeconds;
+		}
+
+		SpawnRuntimeBeanForNetwork( player, bean );
+		bean.Enabled = true;
+		TeleportBeanToSpawn( bean, spawnPosition, spawnRotation );
+
+		Log.Info( $"[TapperBeanSpawn] mode='created-runtime-bean' player='{player.Name}' key='{player.ConnectionKey}' spawnPoint='{spawnPointName}' finalPosition='{bean.WorldPosition}' networked={bean.Network.Active} owner='{bean.Network.OwnerId}'" );
+
+		if ( IsLocalPlayer( player ) )
+			ConfigureCamera();
+	}
+
+	private void ApplyBeanSpawnTransform( PlayerScore player, GameObject bean, GameObject spawnPoint, bool existingBean )
+	{
+		if ( player is null || !bean.IsValid() || !spawnPoint.IsValid() )
+			return;
+
+		var spawnPosition = GetAuthoredBeanSpawnPosition( spawnPoint );
+		var positionDelta = bean.WorldPosition.Distance( spawnPosition );
+		var spawnChanged = !string.Equals( player.SpawnPointName, spawnPoint.Name, StringComparison.Ordinal );
+		if ( !spawnChanged && positionDelta <= 2f )
+			return;
+
+		var oldPosition = bean.WorldPosition;
+		TeleportBeanToSpawn( bean, spawnPosition, spawnPoint.WorldRotation );
+		player.SpawnPointName = spawnPoint.Name;
+		player.HasAppliedSpawn = true;
+		player.AuthoredSpawnPosition = spawnPosition;
+		player.AuthoredSpawnRotation = spawnPoint.WorldRotation;
+		player.SpawnLockUntilTime = RealTime.Now + AuthoredSpawnLockSeconds;
+
+		Log.Info( $"[TapperBeanSpawn] mode='{(existingBean ? "authored-reposition-existing" : "authored-assigned")}' player='{player.Name}' spawnPoint='{spawnPoint.Name}' from='{oldPosition}' markerPosition='{spawnPoint.WorldPosition}' finalPosition='{bean.WorldPosition}'" );
+	}
+
+	private void EnforceAuthoredSpawnLock( PlayerScore player )
+	{
+		if ( player is null || !UseAuthoredScene || !player.Bean.IsValid() )
+			return;
+
+		if ( RealTime.Now > player.SpawnLockUntilTime )
+			return;
+
+		if ( player.Bean.WorldPosition.Distance( player.AuthoredSpawnPosition ) <= 4f )
+			return;
+
+		var oldPosition = player.Bean.WorldPosition;
+		TeleportBeanToSpawn( player.Bean, player.AuthoredSpawnPosition, player.AuthoredSpawnRotation );
+
+		Log.Info( $"[TapperBeanSpawn] mode='authored-lock-corrected' player='{player.Name}' from='{oldPosition}' finalPosition='{player.Bean.WorldPosition}' lockRemaining={player.SpawnLockUntilTime - RealTime.Now:0.##}" );
+	}
+
+	private static void TeleportBeanToSpawn( GameObject bean, Vector3 position, Rotation rotation )
+	{
+		if ( !bean.IsValid() )
+			return;
+
+		bean.WorldPosition = position;
+		bean.WorldRotation = rotation;
+		bean.Transform.ClearInterpolation();
+
+		var body = bean.Components.Get<Rigidbody>();
+		if ( !body.IsValid() )
+			return;
+
+		body.Velocity = Vector3.Zero;
+		body.AngularVelocity = Vector3.Zero;
+		body.Sleeping = false;
+
+		var physicsBody = body.PhysicsBody;
+		if ( physicsBody is null )
+			return;
+
+		physicsBody.Position = position;
+		physicsBody.Rotation = rotation;
+		physicsBody.Velocity = Vector3.Zero;
+		physicsBody.AngularVelocity = Vector3.Zero;
+		physicsBody.Sleeping = false;
+	}
+
+	private void SpawnRuntimeBeanForNetwork( PlayerScore player, GameObject bean )
+	{
+		if ( player is null || !bean.IsValid() || !Networking.IsActive || !IsAuthoritativeInstance() || bean.Network.Active )
+			return;
+
+		var options = new NetworkSpawnOptions
+		{
+			StartEnabled = true,
+			AlwaysTransmit = true,
+			OwnerTransfer = OwnerTransfer.Fixed
+		};
+
+		if ( !bean.NetworkSpawn( options ) )
+			Log.Warning( $"[TapperBeanSpawn] mode='network-spawn-failed' player='{player.Name}' key='{player.ConnectionKey}' position='{bean.WorldPosition}'" );
+	}
+
+	private void DestroyStalePlayerBeanObjects( string connectionKey )
+	{
+		if ( string.IsNullOrWhiteSpace( connectionKey ) )
+			return;
+
+		var beanName = $"Tapper Bean {connectionKey}";
+		var labelName = $"Tapper Bean {connectionKey} Name";
+		foreach ( var gameObject in Scene.Directory.FindByName( beanName ).Concat( Scene.Directory.FindByName( labelName ) ).ToArray() )
+		{
+			if ( gameObject.IsValid() )
+				gameObject.Destroy();
+		}
+	}
+
+	private bool TryBindRuntimeBean( PlayerScore player )
+	{
+		if ( player is null )
+			return false;
+
+		if ( player.Bean.IsValid() && player.BeanController.IsValid() )
+			return true;
+
+		var bean = Scene.Directory.FindByName( $"Tapper Bean {player.ConnectionKey}" )
+			.FirstOrDefault( x => x.IsValid() && x.Network.Active );
+		if ( !bean.IsValid() )
+			return false;
+
+		var controller = bean.Components.Get<TapperPlayerBean>();
+		if ( !controller.IsValid() )
+			return false;
+
+		var label = Scene.Directory.FindByName( $"Tapper Bean {player.ConnectionKey} Name" )
+			.FirstOrDefault( x => x.IsValid() && x.Parent == bean )
+			?.Components.Get<TextRenderer>();
+
+		player.Bean = bean;
+		player.BeanController = controller;
+		player.BeanNameText = label;
+		player.HasAppliedSpawn = true;
+
+		Log.Info( $"[TapperBeanSpawn] mode='bound-network-bean' player='{player.Name}' key='{player.ConnectionKey}' position='{bean.WorldPosition}' owner='{bean.Network.OwnerId}'" );
+		return true;
 	}
 
 	private void UpdatePlayerBeanVisuals( PlayerScore player, int slot )
@@ -195,7 +404,127 @@ public sealed partial class PhysicalFastestTapperGame
 		var stage = GetVenueStageOrigin();
 		var firstY = MathF.Max( CurrentRoomLayout.LeftWallY + 360f, -560f );
 		var y = MathF.Min( firstY + lane * 110f, CurrentRoomLayout.RightWallY - 360f );
-		return stage + new Vector3( -CurrentRoomLayout.FloorWidth * 0.18f, y, 84f );
+		var floorCenterZ = CurrentRoomLayout.FloorThickness + PixelGrassFloorHeightAboveFloor;
+		var floorTopZ = GetPixelGrassFloorTopZ();
+		var spawnZ = GetMinimumBeanSpawnZ();
+		var position = stage + new Vector3( -CurrentRoomLayout.FloorWidth * 0.18f, y, spawnZ );
+
+		Log.Info( $"[TapperBeanSpawn] mode='spawn' slot={slot} position='{position}' floorCenterZ={floorCenterZ:0.##} floorTopZ={floorTopZ:0.##} spawnZ={spawnZ:0.##} capsuleRadius={BeanCapsuleRadius:0.##} capsuleStartZ={BeanCapsuleStartZ:0.##} capsuleEndZ={BeanCapsuleEndZ:0.##} floorHeightAboveFloor={PixelGrassFloorHeightAboveFloor:0.##}" );
+		return position;
+	}
+
+	private bool TryGetBeanSpawnTransform( PlayerScore player, int slot, out Vector3 position, out Rotation rotation, out string spawnPointName )
+	{
+		spawnPointName = "";
+
+		if ( UseAuthoredScene )
+		{
+			if ( TryAssignAuthoredSpawnPoint( player, slot, out var spawnPoint ) )
+			{
+				position = GetAuthoredBeanSpawnPosition( spawnPoint );
+				Log.Info( $"[TapperBeanSpawn] mode='authored-assigned' slot={slot} spawnPoint='{spawnPoint.Name}' markerPosition='{spawnPoint.WorldPosition}' finalPosition='{position}' rotation='{spawnPoint.WorldRotation}' count={GetAuthoredSpawnPoints().Length}" );
+				rotation = spawnPoint.WorldRotation;
+				spawnPointName = spawnPoint.Name;
+				return true;
+			}
+
+			position = default;
+			rotation = Rotation.Identity;
+			return false;
+		}
+
+		position = GetBeanSpawnPosition( slot );
+		rotation = Rotation.FromYaw( 0f );
+		return true;
+	}
+
+	private bool TryAssignAuthoredSpawnPoint( PlayerScore player, int slot, out GameObject spawnPoint )
+	{
+		var spawnPoints = GetAuthoredSpawnPoints();
+		spawnPoint = default;
+
+		if ( spawnPoints.Length == 0 )
+			return false;
+
+		if ( !string.IsNullOrWhiteSpace( player?.SpawnPointName ) )
+		{
+			var assigned = spawnPoints.FirstOrDefault( x => string.Equals( x.Name, player.SpawnPointName, StringComparison.Ordinal ) );
+			if ( assigned.IsValid() && !IsAuthoredSpawnPointReserved( player, assigned.Name ) )
+			{
+				spawnPoint = assigned;
+				return true;
+			}
+		}
+
+		var index = Math.Clamp( slot < 0 ? 0 : slot, 0, int.MaxValue ) % spawnPoints.Length;
+		for ( var offset = 0; offset < spawnPoints.Length; offset++ )
+		{
+			var candidate = spawnPoints[(index + offset) % spawnPoints.Length];
+			if ( IsAuthoredSpawnPointReserved( player, candidate.Name ) )
+				continue;
+
+			spawnPoint = candidate;
+			return true;
+		}
+
+		return false;
+	}
+
+	private bool IsAuthoredSpawnPointReserved( PlayerScore player, string spawnPointName )
+	{
+		return Players.Any( other => other != player
+			&& other.Bean.IsValid()
+			&& string.Equals( other.SpawnPointName, spawnPointName, StringComparison.Ordinal ) );
+	}
+
+	private GameObject[] GetAuthoredSpawnPoints()
+	{
+		return Scene.GetAllComponents<SpawnPoint>()
+			.Where( x => x.IsValid() && x.GameObject.IsValid() && x.GameObject.Enabled )
+			.Select( x => x.GameObject )
+			.OrderBy( x => x.Name )
+			.ToArray();
+	}
+
+	private Vector3 GetAuthoredBeanSpawnPosition( GameObject spawnPoint )
+	{
+		if ( !spawnPoint.IsValid() )
+			return new Vector3( 0f, 0f, GetMinimumBeanSpawnZ() );
+
+		var marker = spawnPoint.WorldPosition;
+		var markerSafeZ = marker.z + BeanCapsuleStartZ + 8f;
+		return new Vector3( marker.x, marker.y, MathF.Max( markerSafeZ, GetMinimumBeanSpawnZ() ) );
+	}
+
+	private void EnsureBeanAboveFloor( PlayerScore player )
+	{
+		if ( player is null || !player.Bean.IsValid() )
+			return;
+
+		var minimumZ = GetMinimumBeanSpawnZ();
+		if ( player.Bean.WorldPosition.z >= minimumZ )
+			return;
+
+		var oldPosition = player.Bean.WorldPosition;
+		player.Bean.WorldPosition = oldPosition.WithZ( minimumZ );
+
+		var body = player.Bean.Components.Get<Rigidbody>();
+		if ( body.IsValid() && body.Velocity.z < 0f )
+			body.Velocity = body.Velocity.WithZ( 0f );
+
+		Log.Info( $"[TapperBeanSpawn] mode='lift-existing' player='{player.Name}' from='{oldPosition}' to='{player.Bean.WorldPosition}' floorCenterZ={CurrentRoomLayout.FloorThickness + PixelGrassFloorHeightAboveFloor:0.##} floorTopZ={GetPixelGrassFloorTopZ():0.##} spawnZ={minimumZ:0.##}" );
+	}
+
+	private float GetMinimumBeanSpawnZ()
+	{
+		return MathF.Max( BeanMinimumSpawnZ, GetPixelGrassFloorTopZ() + BeanVisualFloorClearance );
+	}
+
+	private float GetPixelGrassFloorTopZ()
+	{
+		var floorCenterZ = CurrentRoomLayout.FloorThickness + PixelGrassFloorHeightAboveFloor;
+		var floorColliderHalfZ = MathF.Max( 8f, CurrentRoomLayout.FloorThickness ) * 0.5f;
+		return floorCenterZ + floorColliderHalfZ;
 	}
 
 	private bool IsPlayerCloseEnoughToClaim( PlayerScore player, TapperStation station )
@@ -226,5 +555,10 @@ public sealed partial class PhysicalFastestTapperGame
 		player.Bean = null;
 		player.BeanController = null;
 		player.BeanNameText = null;
+		player.SpawnPointName = "";
+		player.HasAppliedSpawn = false;
+		player.AuthoredSpawnPosition = default;
+		player.AuthoredSpawnRotation = Rotation.Identity;
+		player.SpawnLockUntilTime = 0f;
 	}
 }

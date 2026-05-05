@@ -66,6 +66,17 @@ public sealed partial class PhysicalFastestTapperGame
 
 	private void ApplySyncedStationCapacity()
 	{
+		if ( UseAuthoredScene )
+		{
+			var authoredTarget = Math.Clamp( SyncedStationCapacity, 0, 8 );
+			if ( authoredTarget == CurrentGeneratedStationCount )
+				return;
+
+			EnsureAuthoredPlayStationCapacity( authoredTarget );
+			BindAuthoredArena();
+			return;
+		}
+
 		var target = Math.Clamp( SyncedStationCapacity, 1, 8 );
 		if ( target <= 0 || target == CurrentGeneratedStationCount )
 			return;

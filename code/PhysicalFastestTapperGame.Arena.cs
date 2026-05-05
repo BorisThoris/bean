@@ -8,9 +8,7 @@ using System.Threading.Tasks;
 public sealed partial class PhysicalFastestTapperGame
 {
 	private const string QuaterniusModelRoot = "models/quaternius/modular_sci_fi/";
-	private const string StationPedestalModel = QuaterniusModelRoot + "platform_simple.vmdl";
 	private const string TapperButtonModel = QuaterniusModelRoot + "prop_barrel_large.vmdl";
-	private const string StationBarTrackModel = QuaterniusModelRoot + "decal_line_straight.vmdl";
 	private const string StationBarFillModel = QuaterniusModelRoot + "decal_line_straight.vmdl";
 	private const string WallPanelModel = QuaterniusModelRoot + "wallband_straight.vmdl";
 	private const string WallDividedPanelModel = QuaterniusModelRoot + "wallastra_straight_divided.vmdl";
@@ -54,7 +52,231 @@ public sealed partial class PhysicalFastestTapperGame
 
 	private void EnsureArena()
 	{
+		if ( UseAuthoredScene )
+		{
+			BindAuthoredArena();
+			return;
+		}
+
 		RebuildArenaForStationCapacity( GetDesiredStationCapacity() );
+	}
+
+	private void BindAuthoredArena()
+	{
+		Stations.Clear();
+		VenueDynamicLights.Clear();
+		ProjectionStars.Clear();
+		ProjectionClothes.Clear();
+		ProjectionShootingStars.Clear();
+
+		var stationCapacity = GetDesiredAuthoredStationCapacity();
+		CurrentRoomLayout = RuntimeRoomLayoutMath.Build( Math.Max( 1, stationCapacity ) );
+		CurrentGeneratedStationCount = 0;
+		EnsureAuthoredPlayStationCapacity( stationCapacity );
+
+		for ( var index = 0; index < 8; index++ )
+		{
+			var station = BindAuthoredStation( index );
+			if ( station is null )
+				continue;
+
+			Stations.Add( station );
+		}
+
+		CurrentGeneratedStationCount = Stations.Count;
+		if ( CurrentGeneratedStationCount > 0 )
+			CurrentRoomLayout = RuntimeRoomLayoutMath.Build( CurrentGeneratedStationCount );
+
+		BindAuthoredPixelGrassFloor();
+		BindAuthoredWallScreen();
+		BindAuthoredProjectionObjects();
+		BindAuthoredVenueLights();
+		BindAuthoredWallFallbackText();
+
+		var gameCount = Scene.GetAllComponents<PhysicalFastestTapperGame>().Count( x => x.IsValid() );
+		var playStationCount = Scene.GetAllObjects( true ).Count( x => x.IsValid() && x.Name.StartsWith( "PlayStation" ) );
+		Log.Info( $"[TapperAuthoredScene] games={gameCount} stations={Stations.Count} playStations={playStationCount} spawnPoints={GetAuthoredSpawnPoints().Length} floor={PixelGrassFloorObject.IsValid()} wallScreen={WallScreen.IsValid()} projectionSphere={ProjectionSphereObject.IsValid()} physicalProgress=False generated=False" );
+	}
+
+	private TapperStation BindAuthoredStation( int index )
+	{
+		var root = FindSceneObject( $"PlayStation {index}" );
+		if ( !root.IsValid() || !root.Enabled )
+			return null;
+
+		var button = FindSceneObject( $"Station {index} Physical Tap Button" );
+		var buttonHitbox = FindSceneObject( $"Station {index} Button Hitbox" );
+
+		if ( !button.IsValid() && !buttonHitbox.IsValid() )
+			return null;
+
+		var origin = root.IsValid()
+			? root.WorldPosition
+			: button.IsValid()
+				? button.WorldPosition
+				: buttonHitbox.WorldPosition;
+
+		var station = new TapperStation
+		{
+			Index = index,
+			Origin = origin,
+			Root = root,
+			Button = button,
+			ButtonHitbox = buttonHitbox,
+			ButtonRenderer = button.GetComponent<ModelRenderer>(),
+			ButtonBaseScale = button.IsValid() ? button.LocalScale : Vector3.One
+		};
+
+		if ( station.Button.IsValid() )
+			station.Button.Components.GetOrCreate<PhysicalTapButton>().StationIndex = index;
+
+		if ( station.ButtonHitbox.IsValid() )
+			station.ButtonHitbox.Components.GetOrCreate<PhysicalTapButton>().StationIndex = index;
+
+		return station;
+	}
+
+	private void BindAuthoredPixelGrassFloor()
+	{
+		PixelGrassFloorObject = FindSceneObject( "Arena Pixel Grass Floor" );
+		if ( !PixelGrassFloorObject.IsValid() )
+		{
+			Log.Warning( "[TapperAuthoredFloor] missing='Arena Pixel Grass Floor'" );
+			return;
+		}
+
+		var layout = CurrentRoomLayout;
+		PixelGrassFloorRenderer = PixelGrassFloorObject.GetComponent<ModelRenderer>();
+		if ( PixelGrassFloorRenderer.IsValid() )
+		{
+			PixelGrassFloorRenderer.Enabled = UsePixelGrassFloor;
+			PixelGrassFloorRenderer.Tint = PixelGrassFloorTint;
+		}
+
+		var collider = PixelGrassFloorObject.Components.GetOrCreate<BoxCollider>();
+		collider.Scale = new Vector3( layout.FloorWidth, layout.FloorDepth, MathF.Max( 8f, layout.FloorThickness ) );
+		collider.Static = true;
+		collider.IsTrigger = false;
+
+		var floorModelValid = PixelGrassFloorRenderer.IsValid() && PixelGrassFloorRenderer.Model.IsValid();
+		Log.Info( $"[TapperAuthoredFloor] object=True renderer={PixelGrassFloorRenderer.IsValid()} modelValid={floorModelValid} sceneModelOnly=True position='{PixelGrassFloorObject.LocalPosition}' size='{layout.FloorWidth:0.#}x{layout.FloorDepth:0.#}'" );
+	}
+
+	private void BindAuthoredWallScreen()
+	{
+		var uiObject = FindSceneObject( "Arena Wall Screen UI" );
+		if ( !uiObject.IsValid() )
+			return;
+
+		var screenLayout = ArenaWallScreenLayoutMath.Build( CurrentRoomLayout );
+		ConfigureArenaWallWorldPanel( uiObject, screenLayout );
+
+		var worldPanel = uiObject.Components.Get<WorldPanel>();
+		Log.Info( $"[TapperAuthoredScene] wallScreen=True worldPanel={worldPanel.IsValid()} panelSize='{(worldPanel.IsValid() ? worldPanel.PanelSize.ToString() : "")}' wallScreen={WallScreen.IsValid()}" );
+	}
+
+	private void BindAuthoredWallFallbackText()
+	{
+		WallFallbackText = new ArenaWallFallbackText
+		{
+			Title = GetAuthoredTextRenderer( "Arena Wall Fallback Title" ),
+			Debug = GetAuthoredTextRenderer( "Arena Wall Fallback Debug" ),
+			Headline = GetAuthoredTextRenderer( "Arena Wall Fallback Headline" ),
+			Mode = GetAuthoredTextRenderer( "Arena Wall Fallback Mode" ),
+			Leaderboard = GetAuthoredTextRenderer( "Arena Wall Fallback Leaderboard" ),
+			Stations = GetAuthoredTextRenderer( "Arena Wall Fallback Stations" )
+		};
+	}
+
+	private TextRenderer GetAuthoredTextRenderer( string name )
+	{
+		var gameObject = FindSceneObject( name );
+		return gameObject.IsValid()
+			? gameObject.GetComponent<TextRenderer>()
+			: null;
+	}
+
+	private void BindAuthoredProjectionObjects()
+	{
+		ProjectionSphereObject = FindSceneObject( "Venue Projection Sphere" );
+		var layout = CurrentRoomLayout;
+		var ceilingHeight = GetVenueCeilingHeight( layout );
+		ProjectionSphereCenter = GetProjectionSphereCenter( Vector3.Zero, layout, ceilingHeight );
+		var floorDiagonal = MathF.Sqrt( layout.FloorWidth * layout.FloorWidth + layout.FloorDepth * layout.FloorDepth );
+		ProjectionSphereRadius = MathF.Max( floorDiagonal * 0.5f + ProjectionSphereRadiusPadding, ceilingHeight + ProjectionSphereRadiusPadding );
+		ProjectionCycleStartTime = RealTime.Now;
+
+		if ( ProjectionSphereObject.IsValid() )
+		{
+			ProjectionSphereCenter = ProjectionSphereObject.LocalPosition;
+			ProjectionSphereRenderer = ProjectionSphereObject.GetComponent<ModelRenderer>();
+			if ( ProjectionSphereRenderer.IsValid() )
+			{
+				ProjectionSphereRenderer.Enabled = UseProjectionSphere;
+				ProjectionSphereRenderer.Tint = ProjectionSphereTint;
+			}
+		}
+		else
+		{
+			Log.Warning( "[TapperAuthoredProjectionSphere] missing='Venue Projection Sphere'" );
+		}
+
+		ProjectionTopLightObject = FindSceneObject( "Venue Projection Top Light" );
+		ProjectionTopLight = ProjectionTopLightObject.IsValid()
+			? ProjectionTopLightObject.GetComponent<PointLight>()
+			: null;
+		if ( ProjectionTopLightObject.IsValid() )
+			ProjectionTopLightObject.LocalPosition = ProjectionSphereCenter + Vector3.Up * ProjectionSphereRadius * 0.62f;
+
+		if ( ProjectionTopLight.IsValid() )
+		{
+			ProjectionTopLight.LightColor = ProjectionTopLightColor * ProjectionTopLightIntensity;
+			ProjectionTopLight.Radius = ProjectionTopLightRadius;
+			ProjectionTopLight.Attenuation = 0.58f;
+			ProjectionTopLight.Shadows = false;
+		}
+
+		ProjectionTopLightMarkerObject = FindSceneObject( "Venue Projection Top Light Marker" );
+		ProjectionTopLightMarkerRenderer = ProjectionTopLightMarkerObject.IsValid()
+			? ProjectionTopLightMarkerObject.GetComponent<ModelRenderer>()
+			: null;
+
+		var sphereModelValid = ProjectionSphereRenderer.IsValid() && ProjectionSphereRenderer.Model.IsValid();
+		Log.Info( $"[TapperAuthoredProjectionSphere] object={ProjectionSphereObject.IsValid()} renderer={ProjectionSphereRenderer.IsValid()} modelValid={sphereModelValid} sceneModelOnly=True center='{ProjectionSphereCenter}' radius={ProjectionSphereRadius:0.#} material='{ProjectionSkyMaterialPath}'" );
+	}
+
+	private void BindAuthoredVenueLights()
+	{
+		foreach ( var gameObject in Scene.GetAllObjects( true ).Where( x => x.IsValid() && x.Name.StartsWith( "Venue Light Rig" ) ) )
+		{
+			var point = gameObject.GetComponent<PointLight>();
+			var spot = gameObject.GetComponent<SpotLight>();
+			if ( !point.IsValid() && !spot.IsValid() )
+				continue;
+
+			var role = VenueLightRole.Ambient;
+			var stationIndex = -1;
+
+			if ( gameObject.Name.Contains( "Wall Screen" ) )
+			{
+				role = VenueLightRole.WallScreen;
+			}
+			else if ( gameObject.Name.Contains( "Station" ) && TryParseTrailingNumber( gameObject.Name, out stationIndex ) )
+			{
+				role = VenueLightRole.Station;
+			}
+
+			VenueDynamicLights.Add( new VenueDynamicLight
+			{
+				GameObject = gameObject,
+				Point = point,
+				Spot = spot,
+				Role = role,
+				StationIndex = stationIndex,
+				BaseColor = point.IsValid() ? point.LightColor : spot.LightColor,
+				BaseRadius = point.IsValid() ? point.Radius : spot.Radius
+			} );
+		}
 	}
 
 	private void RebuildArenaForStationCapacity( int stationCapacity )
@@ -120,11 +342,7 @@ public sealed partial class PhysicalFastestTapperGame
 		if ( !UsePixelGrassFloor )
 			return;
 
-		var frontWallX = RuntimeRoomLayoutMath.FrontWallX( layout );
-		var center = stage + new Vector3(
-			frontWallX + layout.FloorWidth * 0.5f,
-			layout.LeftWallY + layout.FloorDepth * 0.5f,
-			layout.FloorThickness + PixelGrassFloorHeightAboveFloor );
+		var center = GetPixelGrassFloorCenter( stage, layout );
 		var materialPath = PixelGrassFloorMaterialPath;
 
 		PixelGrassFloorObject = FindOrCreate( "Arena Pixel Grass Floor" );
@@ -164,10 +382,7 @@ public sealed partial class PhysicalFastestTapperGame
 
 	private void CreateProjectionSphere( Vector3 stage, RuntimeRoomLayout layout, float ceilingHeight )
 	{
-		var center = stage + new Vector3(
-			RuntimeRoomLayoutMath.RoomCenterX( layout ),
-			RuntimeRoomLayoutMath.RoomCenterY( layout ),
-			ceilingHeight * 0.46f );
+		var center = GetProjectionSphereCenter( stage, layout, ceilingHeight );
 
 		var floorDiagonal = MathF.Sqrt( layout.FloorWidth * layout.FloorWidth + layout.FloorDepth * layout.FloorDepth );
 		var radius = MathF.Max( floorDiagonal * 0.5f + ProjectionSphereRadiusPadding, ceilingHeight + ProjectionSphereRadiusPadding );
@@ -188,6 +403,23 @@ public sealed partial class PhysicalFastestTapperGame
 
 		Log.Info( $"[TapperProjectionSphere] center='{center}' radius={radius:0.#} floor='{layout.FloorWidth:0.#}x{layout.FloorDepth:0.#}' uv='{ProjectionSphereURepeat:0.##}x{ProjectionSphereVRepeat:0.##}' rotationSpeed={ProjectionSphereRotationSpeed:0.##} pitchTilt={ProjectionSpherePitchTilt:0.##}" );
 		Log.Info( $"[TapperProjectionSimpleSpin] material='{ProjectionSkyMaterialPath}' shader='shaders/projection_endless.shader' mapping='sphere-space procedural' uv='{ProjectionSphereURepeat:0.##}x{ProjectionSphereVRepeat:0.##}' rotationSpeed={ProjectionSphereRotationSpeed:0.##} topLight=True dayNight=False orbitalEffects=False procedural=True" );
+	}
+
+	private Vector3 GetPixelGrassFloorCenter( Vector3 stage, RuntimeRoomLayout layout )
+	{
+		var frontWallX = RuntimeRoomLayoutMath.FrontWallX( layout );
+		return stage + new Vector3(
+			frontWallX + layout.FloorWidth * 0.5f,
+			layout.LeftWallY + layout.FloorDepth * 0.5f,
+			layout.FloorThickness + PixelGrassFloorHeightAboveFloor );
+	}
+
+	private static Vector3 GetProjectionSphereCenter( Vector3 stage, RuntimeRoomLayout layout, float ceilingHeight )
+	{
+		return stage + new Vector3(
+			RuntimeRoomLayoutMath.RoomCenterX( layout ),
+			RuntimeRoomLayoutMath.RoomCenterY( layout ),
+			ceilingHeight * 0.46f );
 	}
 
 	private void CreateProjectionSphereEffects()
@@ -997,8 +1229,27 @@ public sealed partial class PhysicalFastestTapperGame
 		return RuntimeRoomLayoutMath.ResolveStationCapacity( StationCount, Players.Count );
 	}
 
+	private int GetDesiredAuthoredStationCapacity()
+	{
+		return Math.Clamp( Players.Count, 0, 8 );
+	}
+
 	private void EnsureStationCapacityForLobby()
 	{
+		if ( UseAuthoredScene )
+		{
+			if ( State is RoundState.Countdown or RoundState.Playing )
+				return;
+
+			var desiredAuthored = GetDesiredAuthoredStationCapacity();
+			if ( desiredAuthored == CurrentGeneratedStationCount )
+				return;
+
+			EnsureAuthoredPlayStationCapacity( desiredAuthored );
+			BindAuthoredArena();
+			return;
+		}
+
 		if ( State is RoundState.Countdown or RoundState.Playing )
 			return;
 
@@ -1007,6 +1258,154 @@ public sealed partial class PhysicalFastestTapperGame
 			return;
 
 		RebuildArenaForStationCapacity( desired );
+	}
+
+	private void EnsureAuthoredPlayStationCapacity( int stationCapacity )
+	{
+		var desired = Math.Clamp( stationCapacity, 0, 8 );
+		var layout = RuntimeRoomLayoutMath.Build( Math.Max( 1, desired ) );
+
+		for ( var index = 0; index < 8; index++ )
+		{
+			var root = FindSceneObject( $"PlayStation {index}" );
+			if ( index < desired )
+			{
+				if ( !root.IsValid() )
+				{
+					root = CreateAuthoredPlayStationFromPrefabShape( index );
+					Log.Info( $"[TapperAuthoredStations] created='PlayStation {index}' source='Assets/Prefabs/playstatio.prefab'" );
+				}
+
+				root.Enabled = true;
+				root.LocalPosition = new Vector3( 196f, layout.StationY( index ), 13f );
+				ConfigurePlayStationTree( root, index );
+			}
+			else if ( root.IsValid() )
+			{
+				root.Enabled = false;
+			}
+		}
+	}
+
+	private GameObject CreateAuthoredPlayStationFromPrefabShape( int stationIndex )
+	{
+		var root = FindOrCreate( $"PlayStation {stationIndex}" );
+		root.LocalRotation = Rotation.FromYaw( 90f );
+		root.LocalScale = new Vector3( 0.791165411f, 0.704383969f, 0.121717758f );
+
+		CreateAuthoredStationFrame( root, stationIndex, "Claim Frame Right", Vector3.Zero, Rotation.Identity, Vector3.One );
+		CreateAuthoredStationFrame( root, stationIndex, "Claim Frame Front", new Vector3( -197.177521f, 278.257355f, 0f ), Rotation.FromYaw( -90f ), new Vector3( 1.25641036f, 1f, 1f ) );
+		CreateAuthoredStationFrame( root, stationIndex, "Claim Frame Back", new Vector3( 197.177521f, 278.257355f, 0f ), Rotation.FromYaw( -90f ), new Vector3( 1.25641036f, 1f, 1f ) );
+		CreateAuthoredStationFrame( root, stationIndex, "Claim Frame Left", new Vector3( 0f, 556.514709f, 0f ), Rotation.Identity, Vector3.One );
+		CreateAuthoredStationButton( root, stationIndex );
+		CreateAuthoredStationHitbox( root, stationIndex );
+
+		return root;
+	}
+
+	private void CreateAuthoredStationFrame( GameObject root, int stationIndex, string suffix, Vector3 localPosition, Rotation localRotation, Vector3 localScale )
+	{
+		var gameObject = FindOrCreate( $"Station {stationIndex} {suffix}" );
+		gameObject.SetParent( root, false );
+		gameObject.LocalPosition = localPosition;
+		gameObject.LocalRotation = localRotation;
+		gameObject.LocalScale = localScale;
+		gameObject.Enabled = true;
+
+		var renderer = gameObject.Components.GetOrCreate<ModelRenderer>();
+		renderer.Model = Model.Load( StationBarFillModel );
+		renderer.Tint = ReadyStationColor;
+	}
+
+	private void CreateAuthoredStationButton( GameObject root, int stationIndex )
+	{
+		var gameObject = FindOrCreate( $"Station {stationIndex} Physical Tap Button" );
+		gameObject.SetParent( root, false );
+		gameObject.LocalPosition = new Vector3( -30.3350067f, 278.257324f, -44.0041656f );
+		gameObject.LocalRotation = Rotation.FromYaw( -90f );
+		gameObject.LocalScale = new Vector3( 2.04328275f, 2.40413332f, 3.57657504f );
+		gameObject.Enabled = true;
+
+		var renderer = gameObject.Components.GetOrCreate<ModelRenderer>();
+		renderer.Model = Model.Load( TapperButtonModel );
+		renderer.Tint = IdleButtonColor;
+
+		var collider = gameObject.Components.GetOrCreate<BoxCollider>();
+		collider.Scale = new Vector3( 53.1989059f, 50.7844124f, 110.260498f );
+		collider.Static = true;
+		collider.IsTrigger = false;
+
+		gameObject.Components.GetOrCreate<PhysicalTapButton>().StationIndex = stationIndex;
+	}
+
+	private void CreateAuthoredStationHitbox( GameObject root, int stationIndex )
+	{
+		var gameObject = FindOrCreate( $"Station {stationIndex} Button Hitbox" );
+		gameObject.SetParent( root, false );
+		gameObject.LocalPosition = new Vector3( -30.3349972f, 278.257355f, 353.276367f );
+		gameObject.LocalRotation = Rotation.FromYaw( -90f );
+		gameObject.LocalScale = new Vector3( 1.26395822f, 1.41968024f, 8.21572781f );
+		gameObject.Enabled = true;
+
+		var collider = gameObject.Components.GetOrCreate<BoxCollider>();
+		collider.Scale = new Vector3( 190f, 190f, 110f );
+		collider.Static = true;
+		collider.IsTrigger = true;
+
+		gameObject.Components.GetOrCreate<PhysicalTapButton>().StationIndex = stationIndex;
+	}
+
+	private void RenamePlayStationTree( GameObject root, int fromIndex, int toIndex )
+	{
+		if ( !root.IsValid() )
+			return;
+
+		var fromStation = $"Station {fromIndex} ";
+		var toStation = $"Station {toIndex} ";
+
+		foreach ( var gameObject in Scene.GetAllObjects( true ).Where( x => IsInGameObjectTree( x, root ) ).ToArray() )
+		{
+			if ( gameObject == root )
+			{
+				gameObject.Name = $"PlayStation {toIndex}";
+				continue;
+			}
+
+			if ( gameObject.Name.Contains( fromStation ) )
+				gameObject.Name = gameObject.Name.Replace( fromStation, toStation );
+		}
+	}
+
+	private void ConfigurePlayStationTree( GameObject root, int stationIndex )
+	{
+		if ( !root.IsValid() )
+			return;
+
+		foreach ( var gameObject in Scene.GetAllObjects( true ).Where( x => IsInGameObjectTree( x, root ) ) )
+		{
+			if ( gameObject.Name.Contains( $"Station {stationIndex} " ) )
+				continue;
+
+			if ( TapperStationObjectNames.TryParseStationIndex( gameObject.Name, out _ ) )
+				gameObject.Name = gameObject.Name.Replace( "Station 0 ", $"Station {stationIndex} " );
+		}
+
+		foreach ( var tapButton in Scene.GetAllComponents<PhysicalTapButton>().Where( x => x.IsValid() && x.GameObject.IsValid() && IsInGameObjectTree( x.GameObject, root ) ) )
+			tapButton.StationIndex = stationIndex;
+	}
+
+	private static bool IsInGameObjectTree( GameObject gameObject, GameObject root )
+	{
+		var current = gameObject;
+		while ( current.IsValid() )
+		{
+			if ( current == root )
+				return true;
+
+			current = current.Parent;
+		}
+
+		return false;
 	}
 
 	private void DestroyUnusedStations( int activeStationCount )
@@ -1128,10 +1527,6 @@ public sealed partial class PhysicalFastestTapperGame
 			Root = FindOrCreate( $"Station {index} Root" )
 		};
 
-		DestroyLegacyStationAvatarObjects( index );
-		CreateModelObjectWorld( $"Station {index} Pedestal", origin + new Vector3( 0f, 0f, 0f ), new Vector3( 360f, 280f, 8f ), StationPedestalModel, new Color( 0.22f, 0.24f, 0.27f, 1f ), false, true, ModelPlacementAnchor.Floor );
-		CreateClaimFrame( station );
-
 		station.Button = CreateModelObjectWorld( $"Station {index} Physical Tap Button", origin + new Vector3( 0f, -24f, 8f ), new Vector3( 86f, 86f, 48f ), TapperButtonModel, IdleButtonColor, false, true, ModelPlacementAnchor.Floor );
 		var tapButton = station.Button.Components.GetOrCreate<PhysicalTapButton>();
 		tapButton.StationIndex = index;
@@ -1139,39 +1534,8 @@ public sealed partial class PhysicalFastestTapperGame
 
 		station.ButtonHitbox = CreateButtonHitbox( index, origin + new Vector3( 0f, -24f, 56f ) );
 
-		CreateModelObject( $"Station {index} Progress Track", origin + new Vector3( 34f, 112f, 118f ), new Vector3( 4.9f, 0.18f, 0.11f ), StationBarTrackModel, new Color( 0.2f, 0.23f, 0.29f, 1f ), false, false );
-		station.ProgressFill = CreateModelObject( $"Station {index} Progress Fill", origin + new Vector3( 34f, 112f, 122f ), new Vector3( 4.9f, 0.22f, 0.12f ), StationBarFillModel, new Color( 0.2f, 0.82f, 1f, 1f ), false, false );
-		CreateModelObject( $"Station {index} Heat Track", origin + new Vector3( 34f, 112f, 98f ), new Vector3( 4.9f, 0.18f, 0.11f ), StationBarTrackModel, new Color( 0.2f, 0.23f, 0.29f, 1f ), false, false );
-		station.HeatFill = CreateModelObject( $"Station {index} Heat Fill", origin + new Vector3( 34f, 112f, 102f ), new Vector3( 4.9f, 0.22f, 0.12f ), StationBarFillModel, new Color( 0.15f, 0.65f, 1f, 1f ), false, false );
-		station.HeatFillRenderer = station.HeatFill.GetComponent<ModelRenderer>();
-
 		station.ButtonBaseScale = station.Button.LocalScale;
-		station.ProgressBaseScale = station.ProgressFill.LocalScale;
-		station.ProgressBasePosition = station.ProgressFill.LocalPosition;
-		station.HeatBaseScale = station.HeatFill.LocalScale;
-		station.HeatBasePosition = station.HeatFill.LocalPosition;
-		station.BarModelHalfExtentX = GetModelMetrics( StationBarFillModel ).Size.x * 0.5f;
 		return station;
-	}
-
-	private void CreateClaimFrame( TapperStation station )
-	{
-		var origin = station.Origin;
-		var z = 13f;
-		var halfX = 196f;
-		var halfY = 156f;
-		var longSize = new Vector3( 392f, 10f, 6f );
-		var shortSize = new Vector3( 312f, 10f, 6f );
-
-		station.ClaimFrame = new[]
-		{
-			CreateModelObjectWorld( $"Station {station.Index} Claim Frame Front", origin + new Vector3( 0f, -halfY, z ), longSize, StationBarFillModel, ClaimFrameIdleColor, false, false ),
-			CreateModelObjectWorld( $"Station {station.Index} Claim Frame Back", origin + new Vector3( 0f, halfY, z ), longSize, StationBarFillModel, ClaimFrameIdleColor, false, false ),
-			CreateModelObjectWorld( $"Station {station.Index} Claim Frame Left", origin + new Vector3( -halfX, 0f, z ), shortSize, StationBarFillModel, ClaimFrameIdleColor, false, false, ModelPlacementAnchor.Center, Rotation.FromYaw( 90f ) ),
-			CreateModelObjectWorld( $"Station {station.Index} Claim Frame Right", origin + new Vector3( halfX, 0f, z ), shortSize, StationBarFillModel, ClaimFrameIdleColor, false, false, ModelPlacementAnchor.Center, Rotation.FromYaw( 90f ) )
-		};
-		station.ClaimFrameRenderers = station.ClaimFrame.Select( x => x.GetComponent<ModelRenderer>() ).ToArray();
-		station.ClaimFrameBaseScales = station.ClaimFrame.Select( x => x.LocalScale ).ToArray();
 	}
 
 	private void DestroyLegacyStationAvatarObjects( int stationIndex )

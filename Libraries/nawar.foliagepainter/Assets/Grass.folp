@@ -1,0 +1,126 @@
+{
+  "UseGlobalPlacement": true,
+  "GlobalPlacementOverride": {
+    "MaxNormal": 0.75,
+    "AlignToNormal": false,
+    "PitchAlignment": "0 1",
+    "RandomYaw": true,
+    "EmbedAmount": "-10 0",
+    "SpacingAmount": "-20 0",
+    "IncludeBoundsInSpacing": true
+  },
+  "UseGlobalObjectSettings": false,
+  "GlobalObjectOverride": {
+    "CountMultiplier": "1",
+    "MaxPerStroke": "0",
+    "Scale": "0.8 1.2",
+    "Tint": {
+      "blend": "Linear",
+      "color": [],
+      "alpha": []
+    }
+  },
+  "Mode": "Model",
+  "FoliagePrefabs": [],
+  "FoliageModels": [
+    {
+      "Model": "models/rust_nature/overgrowth/patch_grass_small.vmdl",
+      "Settings": {
+        "CountMultiplier": "1",
+        "MaxPerStroke": "10",
+        "Scale": "0.7 1.2",
+        "Tint": {
+          "blend": "Linear",
+          "color": [
+            {
+              "t": 0,
+              "c": "0.35294,0.39608,0.14118,1"
+            },
+            {
+              "t": 1,
+              "c": "0.39608,0.34085,0.14118,1"
+            }
+          ],
+          "alpha": []
+        }
+      },
+      "Placement": {
+        "MaxNormal": 1,
+        "AlignToNormal": true,
+        "PitchAlignment": "0 1",
+        "RandomYaw": true,
+        "EmbedAmount": "0",
+        "SpacingAmount": "0",
+        "IncludeBoundsInSpacing": false
+      }
+    },
+    {
+      "Model": "models/rust_nature/overgrowth/patch_grass_medium.vmdl",
+      "Settings": {
+        "CountMultiplier": "0.25 0.75",
+        "MaxPerStroke": "5",
+        "Scale": "0.8 1.2",
+        "Tint": {
+          "blend": "Linear",
+          "color": [
+            {
+              "t": 0,
+              "c": "0.35294,0.39608,0.14118,1"
+            },
+            {
+              "t": 1,
+              "c": "0.39608,0.34085,0.14118,1"
+            }
+          ],
+          "alpha": []
+        }
+      },
+      "Placement": {
+        "MaxNormal": 1,
+        "AlignToNormal": true,
+        "PitchAlignment": "0 1",
+        "RandomYaw": true,
+        "EmbedAmount": "0",
+        "SpacingAmount": "0",
+        "IncludeBoundsInSpacing": false
+      }
+    },
+    {
+      "Model": "models/rust_nature/overgrowth/patch_grass_short.vmdl",
+      "Settings": {
+        "CountMultiplier": "1.5",
+        "MaxPerStroke": "10",
+        "Scale": "0.8 1.5",
+        "Tint": {
+          "blend": "Linear",
+          "color": [
+            {
+              "t": 0,
+              "c": "0.35294,0.39608,0.14118,1"
+            },
+            {
+              "t": 1,
+              "c": "0.39608,0.34085,0.14118,1"
+            }
+          ],
+          "alpha": []
+        }
+      },
+      "Placement": {
+        "MaxNormal": 1,
+        "AlignToNormal": true,
+        "PitchAlignment": "0 1",
+        "RandomYaw": true,
+        "EmbedAmount": "0",
+        "SpacingAmount": "0",
+        "IncludeBoundsInSpacing": false
+      }
+    }
+  ],
+  "__references": [
+    "rust.patch_grass_medium#25093",
+    "rust.patch_grass_short#25094",
+    "rust.patch_grass_small#25095"
+  ],
+  "__version": 0
+}

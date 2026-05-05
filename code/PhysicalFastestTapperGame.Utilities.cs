@@ -10,6 +10,31 @@ public sealed partial class PhysicalFastestTapperGame
 		return gameObject.IsValid() ? gameObject : new GameObject( name );
 	}
 
+	private GameObject FindSceneObject( string name )
+	{
+		return Scene.Directory.FindByName( name ).FirstOrDefault();
+	}
+
+	private static bool TryParseTrailingNumber( string value, out int number )
+	{
+		number = -1;
+		if ( string.IsNullOrWhiteSpace( value ) )
+			return false;
+
+		var end = value.Length - 1;
+		while ( end >= 0 && char.IsWhiteSpace( value[end] ) )
+			end--;
+
+		var start = end;
+		while ( start >= 0 && char.IsDigit( value[start] ) )
+			start--;
+
+		if ( start == end )
+			return false;
+
+		return int.TryParse( value.Substring( start + 1, end - start ), out number );
+	}
+
 	private static void SetText( TextRenderer textRenderer, string value )
 	{
 		if ( !textRenderer.IsValid() )

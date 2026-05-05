@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>package.nawar.foliagepainter</name>
+    </assembly>
+    <members>
+        <member name="P:Foliage.IFoliagePigment.Settings">
+            <summary>
+            Object settings for the pigment.
+            </summary>
+        </member>
+        <member name="P:Foliage.IFoliagePigment.Placement">
+            <summary>
+            Placement settings for the pigment.
+            </summary>
+        </member>
+        <member name="M:Foliage.IFoliagePigment.OnLoad">
+            <summary>
+            Called when the pigment is loaded.
+            Used for setting up the pigment if needed.
+            </summary>
+        </member>
+        <member name="M:Foliage.IFoliagePigment.Radius">
+            <summary>
+            The radius of the piece of foliage that this pigment paints.
+            </summary>
+        </member>
+        <member name="M:Foliage.IFoliagePigment.Paint(Sandbox.Scene)">
+            <summary>
+            Called when the pigment is painted, should return a new foliage object that was painted.
+            </summary>
+        </member>
+        <member name="T:Foliage.ModelFoliagePigment">
+            <summary>
+            A pigment that is just a model.
+            It will create a new game object with a model renderer component.
+            </summary>
+        </member>
+        <member name="T:Foliage.PrefabFoliagePigment">
+            <summary>
+            A pigment that is a prefab.
+            It will create a clone of the prefab.
+            </summary>
+        </member>
+    </members>
+</doc>

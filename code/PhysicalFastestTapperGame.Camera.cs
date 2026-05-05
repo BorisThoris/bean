@@ -19,7 +19,7 @@ public sealed partial class PhysicalFastestTapperGame
 
 	private void ConfigureCamera()
 	{
-		var camera = Scene.Camera;
+		var camera = EnsureGameplayCamera();
 		if ( !camera.IsValid() )
 			return;
 
@@ -79,6 +79,7 @@ public sealed partial class PhysicalFastestTapperGame
 		camera.WorldPosition = ClampCameraInsideRoomBounds( target + offset );
 		AimCameraAt( camera, target + rotation.Forward * 45f );
 		camera.FieldOfView = 72f;
+		LogBeanCameraDebug( "thirdperson", local, camera );
 	}
 
 	private void ConfigureFirstPersonCamera( CameraComponent camera )
@@ -91,6 +92,60 @@ public sealed partial class PhysicalFastestTapperGame
 		camera.WorldPosition = ClampCameraInsideRoomBounds( eyePosition );
 		camera.WorldRotation = rotation;
 		camera.FieldOfView = 78f;
+		LogBeanCameraDebug( "firstperson", local, camera );
+	}
+
+	private CameraComponent EnsureGameplayCamera()
+	{
+		var camera = Scene.Camera;
+		if ( camera.IsValid() )
+		{
+			ActivateGameplayCamera( camera );
+			return camera;
+		}
+
+		camera = Scene.GetAllComponents<CameraComponent>()
+			.FirstOrDefault( x => x.IsValid() && x.IsMainCamera );
+		if ( camera.IsValid() )
+		{
+			ActivateGameplayCamera( camera );
+			return camera;
+		}
+
+		var cameraObject = FindOrCreate( "Tapper Gameplay Camera" );
+		cameraObject.Enabled = true;
+		camera = cameraObject.Components.GetOrCreate<CameraComponent>();
+		ActivateGameplayCamera( camera );
+		Log.Info( "[TapperCamera] created='Tapper Gameplay Camera' reason='missing-scene-camera'" );
+		return camera;
+	}
+
+	private void ActivateGameplayCamera( CameraComponent camera )
+	{
+		if ( !camera.IsValid() )
+			return;
+
+		foreach ( var other in Scene.GetAllComponents<CameraComponent>().Where( x => x.IsValid() && x != camera ) )
+			other.IsMainCamera = false;
+
+		camera.GameObject.Enabled = true;
+		camera.Enabled = true;
+		camera.IsMainCamera = true;
+		camera.Priority = 10;
+		camera.ZNear = 4f;
+		camera.ZFar = 10000f;
+	}
+
+	private void LogBeanCameraDebug( string mode, PlayerScore local, CameraComponent camera )
+	{
+		if ( local is null || !local.Bean.IsValid() || !camera.IsValid() )
+			return;
+
+		if ( RealTime.Now - LastCameraDebugLogTime < 1.5f )
+			return;
+
+		LastCameraDebugLogTime = RealTime.Now;
+		Log.Info( $"[TapperCamera] mode='Bean' view='{mode}' player='{local.ConnectionKey}' bean='{local.Bean.WorldPosition}' camera='{camera.WorldPosition}' fov={camera.FieldOfView:0.#}" );
 	}
 
 	private Vector3 ClampCameraInsideRoomBounds( Vector3 position )

@@ -369,62 +369,6 @@ public sealed partial class PhysicalFastestTapperGame
 		var hotColor = Color.Lerp( IdleButtonColor, HotButtonColor, heat );
 		if ( station.ButtonRenderer.IsValid() )
 			station.ButtonRenderer.Tint = hotColor;
-
-		var duration = Math.Max( RoundDuration, 0.001f );
-		var progress = (RoundTimeLeft / duration).Clamp( 0f, 1f );
-		if ( State != RoundState.Playing )
-			progress = State == RoundState.Countdown ? 1f : 0f;
-
-		if ( station.ProgressFill.IsValid() )
-		{
-			station.ProgressFill.LocalScale = new Vector3( station.ProgressBaseScale.x * progress, station.ProgressBaseScale.y, station.ProgressBaseScale.z );
-			station.ProgressFill.LocalPosition = station.ProgressBasePosition + Vector3.Right * ((station.ProgressBaseScale.x - station.ProgressFill.LocalScale.x) * -station.BarModelHalfExtentX);
-		}
-
-		if ( station.HeatFill.IsValid() )
-		{
-			var fill = Math.Max( heat, station.FinishFlash );
-			station.HeatFill.LocalScale = new Vector3( station.HeatBaseScale.x * fill, station.HeatBaseScale.y, station.HeatBaseScale.z );
-			station.HeatFill.LocalPosition = station.HeatBasePosition + Vector3.Right * ((station.HeatBaseScale.x - station.HeatFill.LocalScale.x) * -station.BarModelHalfExtentX);
-		}
-
-		if ( station.HeatFillRenderer.IsValid() )
-			station.HeatFillRenderer.Tint = Color.Lerp( new Color( 0.15f, 0.65f, 1f, 1f ), HotButtonColor, heat );
-
-		UpdateClaimFrameVisuals( station, player );
-	}
-
-	private void UpdateClaimFrameVisuals( TapperStation station, PlayerScore stationPlayer )
-	{
-		if ( station.ClaimFrame is null || station.ClaimFrameRenderers is null || station.ClaimFrameBaseScales is null )
-			return;
-
-		var local = GetLocalPlayer();
-		var lobbyPhase = State is RoundState.WaitingForPlayers or RoundState.Results or RoundState.Intermission;
-		var visible = stationPlayer is null
-			&& lobbyPhase
-			&& local is not null
-			&& !local.Spectating
-			&& local.StationIndex < 0;
-
-		var inRange = visible && local.BeanController.IsValid() && local.BeanController.IsWithinClaimRange( station.Origin );
-		var pulse = (MathF.Sin( RealTime.Now * (inRange ? 8f : 4f) ) + 1f) * 0.5f;
-		var color = Color.Lerp( inRange ? ClaimFrameActiveColor : ClaimFrameIdleColor, Color.White, inRange ? pulse * 0.28f : pulse * 0.12f );
-		var scaleMultiplier = 1f + (inRange ? 0.045f : 0.02f) * pulse;
-
-		for ( var i = 0; i < station.ClaimFrame.Length; i++ )
-		{
-			var frame = station.ClaimFrame[i];
-			if ( !frame.IsValid() )
-				continue;
-
-			frame.Enabled = visible;
-			if ( visible && i < station.ClaimFrameBaseScales.Length )
-				frame.LocalScale = station.ClaimFrameBaseScales[i] * scaleMultiplier;
-
-			if ( i < station.ClaimFrameRenderers.Length && station.ClaimFrameRenderers[i].IsValid() )
-				station.ClaimFrameRenderers[i].Tint = color;
-		}
 	}
 
 	public string GetWallScreenTitle()
