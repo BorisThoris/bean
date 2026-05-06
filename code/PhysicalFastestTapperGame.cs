@@ -174,8 +174,9 @@ public sealed partial class PhysicalFastestTapperGame : Component, Component.INe
 		try
 		{
 			ConfigureCamera();
-			EnsureArena();
+			CacheAuthoredPlayerSpawnPoints();
 			EnsureLocalFallbackPlayer();
+			EnsureArena();
 			EnsurePlayerBeans();
 			ConfigureCamera();
 			EnterWaiting();

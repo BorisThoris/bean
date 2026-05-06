@@ -60,10 +60,13 @@ public sealed class TapperPlayerBean : Component
 
 	protected override void OnUpdate()
 	{
+		var hasNetworkOwner = GameObject.Network.Active;
+		var canControl = IsLocalPlayer && (!hasNetworkOwner || !GameObject.Network.IsProxy);
+
 		if ( Renderer.IsValid() )
 			Renderer.Enabled = !(IsLocalPlayer && IsFirstPersonView);
 
-		if ( !IsLocalPlayer )
+		if ( !canControl )
 		{
 			ApplyAnimation( Body.IsValid() ? Body.Velocity : Vector3.Zero, true );
 			return;
@@ -79,7 +82,8 @@ public sealed class TapperPlayerBean : Component
 
 	protected override void OnFixedUpdate()
 	{
-		if ( !IsLocalPlayer )
+		var hasNetworkOwner = GameObject.Network.Active;
+		if ( !IsLocalPlayer || (hasNetworkOwner && GameObject.Network.IsProxy) )
 			return;
 
 		Body ??= Components.Get<Rigidbody>();

@@ -1,6 +1,5 @@
 using Sandbox;
 using Sandbox.Citizen;
-using Sandbox.Movement;
 using System;
 using System.Linq;
 
@@ -11,7 +10,31 @@ public sealed partial class PhysicalFastestTapperGame
 	private const float BeanCapsuleEndZ = 76f;
 	private const float BeanMinimumSpawnZ = 84f;
 	private const float BeanVisualFloorClearance = 46f;
-	private const float AuthoredSpawnLockSeconds = 3f;
+	private const float AuthoredSpawnLockSeconds = 0.35f;
+	private GameObject[] CachedAuthoredPlayerSpawnPoints = Array.Empty<GameObject>();
+
+	private void CacheAuthoredPlayerSpawnPoints()
+	{
+		var root = Scene.Directory.FindByName( "Player Spawn Points" )
+			.FirstOrDefault( x => x.IsValid() && x.Enabled );
+
+		if ( !root.IsValid() )
+		{
+			CachedAuthoredPlayerSpawnPoints = Array.Empty<GameObject>();
+			Log.Warning( "[TapperBeanSpawn] mode='spawn-cache-missing-root' root='Player Spawn Points'" );
+			return;
+		}
+
+		CachedAuthoredPlayerSpawnPoints = root.Children
+			.Where( x => x.IsValid() && x.Enabled )
+			.OrderBy( x => x.Name )
+			.ToArray();
+
+		foreach ( var renderer in CachedAuthoredPlayerSpawnPoints.SelectMany( x => x.Components.GetAll<ModelRenderer>() ) )
+			renderer.Enabled = false;
+
+		Log.Info( $"[TapperBeanSpawn] mode='spawn-cache' root='{root.Name}' count={CachedAuthoredPlayerSpawnPoints.Length} points='{string.Join( ";", CachedAuthoredPlayerSpawnPoints.Select( x => $"{x.Name}@{x.WorldPosition}" ) )}'" );
+	}
 
 	private void EnsurePlayerBeans()
 	{
@@ -25,6 +48,8 @@ public sealed partial class PhysicalFastestTapperGame
 			if ( UseAuthoredScene && IsAuthoritativeInstance() )
 				EnforceAuthoredSpawnLock( player );
 		}
+
+		PurgeUntrackedPlayerBeanObjects();
 	}
 
 	private void EnsurePlayerBean( PlayerScore player )
@@ -61,7 +86,8 @@ public sealed partial class PhysicalFastestTapperGame
 
 			player.WaitingForSpawn = false;
 			var spawnChanged = !string.Equals( player.SpawnPointName, existingSpawnPoint.Name, StringComparison.Ordinal );
-			if ( !player.HasAppliedSpawn || spawnChanged )
+			var spawnTransformChanged = player.AuthoredSpawnPosition.Distance( GetAuthoredBeanSpawnPosition( existingSpawnPoint ) ) > 2f;
+			if ( !player.HasAppliedSpawn || spawnChanged || spawnTransformChanged )
 				ApplyBeanSpawnTransform( player, player.Bean, existingSpawnPoint, true );
 			else
 				EnforceAuthoredSpawnLock( player );
@@ -88,7 +114,7 @@ public sealed partial class PhysicalFastestTapperGame
 		player.SpawnPointName = spawnPointName;
 		DestroyStalePlayerBeanObjects( player.ConnectionKey );
 
-		var bean = new GameObject( false, $"Tapper Bean {player.ConnectionKey}" );
+		var bean = new GameObject( $"Tapper Bean {player.ConnectionKey}" );
 		bean.LocalScale = Vector3.One;
 		TeleportBeanToSpawn( bean, spawnPosition, spawnRotation );
 
@@ -131,11 +157,6 @@ public sealed partial class PhysicalFastestTapperGame
 		collider.Static = false;
 		collider.IsTrigger = false;
 
-		var walkMode = bean.Components.GetOrCreate<MoveModeWalk>();
-		walkMode.StepUpHeight = 18f;
-		walkMode.StepDownHeight = 18f;
-		walkMode.GroundAngle = 45f;
-
 		var controller = bean.Components.GetOrCreate<TapperPlayerBean>();
 		controller.Configure( IsLocalPlayer( player ), renderer, animation );
 
@@ -163,10 +184,9 @@ public sealed partial class PhysicalFastestTapperGame
 		}
 
 		SpawnRuntimeBeanForNetwork( player, bean );
-		bean.Enabled = true;
 		TeleportBeanToSpawn( bean, spawnPosition, spawnRotation );
 
-		Log.Info( $"[TapperBeanSpawn] mode='created-runtime-bean' player='{player.Name}' key='{player.ConnectionKey}' spawnPoint='{spawnPointName}' finalPosition='{bean.WorldPosition}' networked={bean.Network.Active} owner='{bean.Network.OwnerId}'" );
+		Log.Info( $"[TapperBeanSpawn] mode='created-runtime-bean' player='{player.Name}' key='{player.ConnectionKey}' spawnPoint='{spawnPointName}' finalPosition='{bean.WorldPosition}' networked={bean.Network.Active} owner='{bean.Network.OwnerId}' {GetNearestStationDebug( bean.WorldPosition )}" );
 
 		if ( IsLocalPlayer( player ) )
 			ConfigureCamera();
@@ -191,7 +211,7 @@ public sealed partial class PhysicalFastestTapperGame
 		player.AuthoredSpawnRotation = spawnPoint.WorldRotation;
 		player.SpawnLockUntilTime = RealTime.Now + AuthoredSpawnLockSeconds;
 
-		Log.Info( $"[TapperBeanSpawn] mode='{(existingBean ? "authored-reposition-existing" : "authored-assigned")}' player='{player.Name}' spawnPoint='{spawnPoint.Name}' from='{oldPosition}' markerPosition='{spawnPoint.WorldPosition}' finalPosition='{bean.WorldPosition}'" );
+		Log.Info( $"[TapperBeanSpawn] mode='{(existingBean ? "authored-reposition-existing" : "authored-assigned")}' player='{player.Name}' spawnPoint='{spawnPoint.Name}' from='{oldPosition}' markerPosition='{spawnPoint.WorldPosition}' finalPosition='{bean.WorldPosition}' {GetNearestStationDebug( bean.WorldPosition )}" );
 	}
 
 	private void EnforceAuthoredSpawnLock( PlayerScore player )
@@ -248,6 +268,7 @@ public sealed partial class PhysicalFastestTapperGame
 		{
 			StartEnabled = true,
 			AlwaysTransmit = true,
+			Owner = player.Connection,
 			OwnerTransfer = OwnerTransfer.Fixed
 		};
 
@@ -267,6 +288,51 @@ public sealed partial class PhysicalFastestTapperGame
 			if ( gameObject.IsValid() )
 				gameObject.Destroy();
 		}
+	}
+
+	private void PurgeUntrackedPlayerBeanObjects()
+	{
+		var trackedObjects = Players
+			.SelectMany( x => new[] { x.Bean, x.BeanNameText?.GameObject } )
+			.Where( x => x.IsValid() )
+			.ToHashSet();
+
+		var expectedNames = Players
+			.SelectMany( x =>
+			{
+				var key = x.ConnectionKey ?? ConnectionKey( x.Connection );
+				return new[] { $"Tapper Bean {key}", $"Tapper Bean {key} Name" };
+			} )
+			.ToHashSet( StringComparer.Ordinal );
+
+		foreach ( var gameObject in Scene.GetAllObjects( true ).Where( IsTapperBeanObject ).ToArray() )
+		{
+			if ( trackedObjects.Contains( gameObject ) )
+				continue;
+
+			var duplicateTrackedName = expectedNames.Contains( gameObject.Name );
+			var unexpectedName = !expectedNames.Contains( gameObject.Name );
+			if ( !duplicateTrackedName && !unexpectedName )
+				continue;
+
+			Log.Info( $"[TapperBeanSpawn] mode='destroy-untracked-bean' object='{gameObject.Name}' position='{gameObject.WorldPosition}' duplicateName={duplicateTrackedName} unexpectedName={unexpectedName} {GetNearestStationDebug( gameObject.WorldPosition )}" );
+			gameObject.Destroy();
+		}
+
+		foreach ( var controller in Scene.GetAllComponents<TapperPlayerBean>().Where( x => x.IsValid() && x.GameObject.IsValid() ).ToArray() )
+		{
+			if ( trackedObjects.Contains( controller.GameObject ) )
+				continue;
+
+			Log.Info( $"[TapperBeanSpawn] mode='destroy-orphan-controller' object='{controller.GameObject.Name}' position='{controller.GameObject.WorldPosition}' {GetNearestStationDebug( controller.GameObject.WorldPosition )}" );
+			controller.GameObject.Destroy();
+		}
+	}
+
+	private static bool IsTapperBeanObject( GameObject gameObject )
+	{
+		return gameObject.IsValid()
+			&& gameObject.Name.StartsWith( "Tapper Bean ", StringComparison.Ordinal );
 	}
 
 	private bool TryBindRuntimeBean( PlayerScore player )
@@ -479,11 +545,33 @@ public sealed partial class PhysicalFastestTapperGame
 
 	private GameObject[] GetAuthoredSpawnPoints()
 	{
-		return Scene.GetAllComponents<SpawnPoint>()
-			.Where( x => x.IsValid() && x.GameObject.IsValid() && x.GameObject.Enabled )
-			.Select( x => x.GameObject )
+		var spawnPoints = CachedAuthoredPlayerSpawnPoints
+			.Where( x => x.IsValid() && x.Enabled )
 			.OrderBy( x => x.Name )
 			.ToArray();
+
+		if ( spawnPoints.Length == 0 && UseAuthoredScene )
+		{
+			CacheAuthoredPlayerSpawnPoints();
+			spawnPoints = CachedAuthoredPlayerSpawnPoints
+				.Where( x => x.IsValid() && x.Enabled )
+				.OrderBy( x => x.Name )
+				.ToArray();
+		}
+
+		return spawnPoints;
+	}
+
+	private string GetNearestStationDebug( Vector3 position )
+	{
+		var nearestStation = Stations
+			.OrderBy( x => position.Distance( x.Origin ) )
+			.FirstOrDefault();
+
+		if ( nearestStation is null )
+			return "nearestStation='none'";
+
+		return $"nearestStation={nearestStation.Index} stationOrigin='{nearestStation.Origin}' stationDistance={position.Distance( nearestStation.Origin ):0.##}";
 	}
 
 	private Vector3 GetAuthoredBeanSpawnPosition( GameObject spawnPoint )
@@ -492,8 +580,7 @@ public sealed partial class PhysicalFastestTapperGame
 			return new Vector3( 0f, 0f, GetMinimumBeanSpawnZ() );
 
 		var marker = spawnPoint.WorldPosition;
-		var markerSafeZ = marker.z + BeanCapsuleStartZ + 8f;
-		return new Vector3( marker.x, marker.y, MathF.Max( markerSafeZ, GetMinimumBeanSpawnZ() ) );
+		return marker + Vector3.Up * BeanCapsuleStartZ;
 	}
 
 	private void EnsureBeanAboveFloor( PlayerScore player )
