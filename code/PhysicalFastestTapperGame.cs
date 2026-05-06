@@ -73,6 +73,8 @@ public sealed partial class PhysicalFastestTapperGame : Component, Component.INe
 	private static readonly Color ReadyStationColor = new( 0.2f, 0.82f, 1f, 1f );
 	private static readonly Color WinnerStationColor = new( 1f, 0.84f, 0.18f, 1f );
 	private static readonly Color VenueWallColor = new( 0.13f, 0.145f, 0.165f, 1f );
+	private static readonly Vector3 AuthoredStationClaimBoundsCenterLocal = new( 0f, 278.257355f, 0f );
+	private static readonly Vector3 AuthoredStationClaimBoundsHalfExtentsLocal = new( 220f, 310f, 0f );
 
 	private readonly List<TapperStation> Stations = new();
 	private readonly List<PlayerScore> Players = new();
@@ -197,6 +199,7 @@ public sealed partial class PhysicalFastestTapperGame : Component, Component.INe
 		{
 			EnsureKnownConnections();
 			EnsureStationCapacityForLobby();
+			UpdateStationClaims();
 			HandleLocalFallbackInput();
 			UpdateRoundFlow();
 			PublishNetworkState();

@@ -110,11 +110,9 @@ public sealed partial class PhysicalFastestTapperGame
 		if ( !button.IsValid() && !buttonHitbox.IsValid() )
 			return null;
 
-		var origin = root.IsValid()
-			? root.WorldPosition
-			: button.IsValid()
-				? button.WorldPosition
-				: buttonHitbox.WorldPosition;
+		var claimBoundsCenterLocal = AuthoredStationClaimBoundsCenterLocal;
+		var claimBoundsHalfExtentsLocal = AuthoredStationClaimBoundsHalfExtentsLocal;
+		var origin = GetStationLocalPointWorldPosition( root, claimBoundsCenterLocal );
 
 		var station = new TapperStation
 		{
@@ -124,7 +122,10 @@ public sealed partial class PhysicalFastestTapperGame
 			Button = button,
 			ButtonHitbox = buttonHitbox,
 			ButtonRenderer = button.GetComponent<ModelRenderer>(),
-			ButtonBaseScale = button.IsValid() ? button.LocalScale : Vector3.One
+			ClaimFrameRenderers = GetAuthoredStationFrameRenderers( index ),
+			ButtonBaseScale = button.IsValid() ? button.LocalScale : Vector3.One,
+			ClaimBoundsCenterLocal = claimBoundsCenterLocal,
+			ClaimBoundsHalfExtentsLocal = claimBoundsHalfExtentsLocal
 		};
 
 		if ( station.Button.IsValid() )
@@ -134,6 +135,24 @@ public sealed partial class PhysicalFastestTapperGame
 			station.ButtonHitbox.Components.GetOrCreate<PhysicalTapButton>().StationIndex = index;
 
 		return station;
+	}
+
+	private ModelRenderer[] GetAuthoredStationFrameRenderers( int stationIndex )
+	{
+		return TapperStationObjectNames.ClaimFrameSuffixes
+			.Select( suffix => FindSceneObject( $"Station {stationIndex}{suffix}" ) )
+			.Where( x => x.IsValid() )
+			.Select( x => x.GetComponent<ModelRenderer>() )
+			.Where( x => x.IsValid() )
+			.ToArray();
+	}
+
+	private static Vector3 GetStationLocalPointWorldPosition( GameObject root, Vector3 localPoint )
+	{
+		if ( !root.IsValid() )
+			return localPoint;
+
+		return root.WorldPosition + root.WorldRotation * ComponentMultiply( localPoint, root.LocalScale );
 	}
 
 	private void BindAuthoredPixelGrassFloor()
@@ -1231,7 +1250,7 @@ public sealed partial class PhysicalFastestTapperGame
 
 	private int GetDesiredAuthoredStationCapacity()
 	{
-		return Math.Clamp( Players.Count, 0, 8 );
+		return TapperStationInteractionRules.ResolveDynamicStationCapacity( Players.Count, Players.Select( x => x.StationIndex ) );
 	}
 
 	private void EnsureStationCapacityForLobby()
@@ -1247,6 +1266,7 @@ public sealed partial class PhysicalFastestTapperGame
 
 			EnsureAuthoredPlayStationCapacity( desiredAuthored );
 			BindAuthoredArena();
+			DropInvalidStationClaims();
 			return;
 		}
 
@@ -1258,6 +1278,25 @@ public sealed partial class PhysicalFastestTapperGame
 			return;
 
 		RebuildArenaForStationCapacity( desired );
+		DropInvalidStationClaims();
+	}
+
+	private void DropInvalidStationClaims()
+	{
+		var activeStationIndexes = Stations
+			.Select( x => x.Index )
+			.ToHashSet();
+
+		foreach ( var player in Players )
+		{
+			if ( !TapperStationInteractionRules.ShouldDropStationClaim( player.StationIndex, activeStationIndexes ) )
+				continue;
+
+			Log.Info( $"[TapperStations] mode='drop-invalid-claim' player='{player.Name}' station={player.StationIndex} active='{string.Join( ",", activeStationIndexes.OrderBy( x => x ) )}'" );
+			player.StationIndex = -1;
+			player.Ready = false;
+			player.Spectating = false;
+		}
 	}
 
 	private void EnsureAuthoredPlayStationCapacity( int stationCapacity )
@@ -1277,7 +1316,7 @@ public sealed partial class PhysicalFastestTapperGame
 				}
 
 				root.Enabled = true;
-				root.LocalPosition = new Vector3( 196f, layout.StationY( index ), 13f );
+				root.LocalPosition = new Vector3( 196f, layout.StationY( index ), GetAuthoredPlayStationRootZ() );
 				ConfigurePlayStationTree( root, index );
 			}
 			else if ( root.IsValid() )
@@ -1285,6 +1324,19 @@ public sealed partial class PhysicalFastestTapperGame
 				root.Enabled = false;
 			}
 		}
+	}
+
+	private float GetAuthoredPlayStationRootZ()
+	{
+		var floor = PixelGrassFloorObject.IsValid()
+			? PixelGrassFloorObject
+			: FindSceneObject( "Arena Pixel Grass Floor" );
+		var collider = floor.GetComponent<BoxCollider>();
+
+		if ( floor.IsValid() && collider.IsValid() )
+			return floor.WorldPosition.z + MathF.Abs( collider.Scale.z ) * 0.5f + 1f;
+
+		return CurrentRoomLayout.FloorThickness + PixelGrassFloorHeightAboveFloor + CurrentRoomLayout.FloorThickness * 0.5f + 1f;
 	}
 
 	private GameObject CreateAuthoredPlayStationFromPrefabShape( int stationIndex )

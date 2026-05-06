@@ -619,7 +619,57 @@ public sealed partial class PhysicalFastestTapperGame
 		if ( player?.BeanController is null || !player.BeanController.IsValid() )
 			return true;
 
-		return player.BeanController.IsWithinClaimRange( station.Origin );
+		var playerPosition = player.Bean.IsValid() ? player.Bean.WorldPosition : player.BeanController.WorldPosition;
+		if ( HasStationBounds( station ) )
+			return IsPlayerInsideStationBounds( playerPosition, station );
+
+		return TapperStationInteractionRules.IsWithinClaimRange2D(
+			playerPosition.x - station.Origin.x,
+			playerPosition.y - station.Origin.y,
+			player.BeanController.ClaimRange );
+	}
+
+	private bool IsPlayerInsideStationBounds( PlayerScore player, TapperStation station )
+	{
+		if ( player?.BeanController is null || !player.BeanController.IsValid() )
+			return true;
+
+		var playerPosition = player.Bean.IsValid() ? player.Bean.WorldPosition : player.BeanController.WorldPosition;
+		return IsPlayerInsideStationBounds( playerPosition, station );
+	}
+
+	private static bool IsPlayerInsideStationBounds( Vector3 playerPosition, TapperStation station )
+	{
+		if ( !HasStationBounds( station ) )
+			return false;
+
+		var halfExtents = station.ClaimBoundsHalfExtentsLocal;
+		var center = GetStationLocalPointWorldPosition( station.Root, station.ClaimBoundsCenterLocal );
+		var relative = playerPosition - center;
+		var scale = station.Root.LocalScale;
+		var localX = Dot( relative, station.Root.WorldRotation.Forward ) / SafeScaleAxis( scale.x );
+		var localY = Dot( relative, station.Root.WorldRotation.Left ) / SafeScaleAxis( scale.y );
+
+		return TapperStationInteractionRules.IsWithinStationBounds2D( localX, localY, halfExtents.x, halfExtents.y );
+	}
+
+	private static bool HasStationBounds( TapperStation station )
+	{
+		return station?.Root is not null
+			&& station.Root.IsValid()
+			&& station.ClaimBoundsHalfExtentsLocal.x > 0f
+			&& station.ClaimBoundsHalfExtentsLocal.y > 0f;
+	}
+
+	private static float Dot( Vector3 left, Vector3 right )
+	{
+		return left.x * right.x + left.y * right.y + left.z * right.z;
+	}
+
+	private static float SafeScaleAxis( float value )
+	{
+		var magnitude = MathF.Abs( value );
+		return magnitude <= 0.0001f ? 1f : magnitude;
 	}
 
 	private PlayerScore GetLocalPlayer()

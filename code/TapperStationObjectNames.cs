@@ -1,13 +1,18 @@
 public static class TapperStationObjectNames
 {
-	private static readonly string[] StationButtonSuffixes =
+	public static readonly string[] ClaimFrameSuffixes =
 	[
-		" Physical Tap Button",
-		" Button Hitbox",
 		" Claim Frame Front",
 		" Claim Frame Back",
 		" Claim Frame Left",
 		" Claim Frame Right"
+	];
+
+	private static readonly string[] StationButtonSuffixes =
+	[
+		" Physical Tap Button",
+		" Button Hitbox",
+		..ClaimFrameSuffixes
 	];
 
 	public static bool TryParseStationIndex( string objectName, out int stationIndex )

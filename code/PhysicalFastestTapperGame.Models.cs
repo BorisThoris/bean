@@ -131,7 +131,10 @@ public sealed partial class PhysicalFastestTapperGame
 		public GameObject Button;
 		public GameObject ButtonHitbox;
 		public ModelRenderer ButtonRenderer;
+		public ModelRenderer[] ClaimFrameRenderers = [];
 		public Vector3 ButtonBaseScale;
+		public Vector3 ClaimBoundsCenterLocal;
+		public Vector3 ClaimBoundsHalfExtentsLocal;
 		public float ButtonPunch;
 		public float FinishFlash;
 	}

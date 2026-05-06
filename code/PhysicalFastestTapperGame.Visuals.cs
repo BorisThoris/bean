@@ -369,6 +369,22 @@ public sealed partial class PhysicalFastestTapperGame
 		var hotColor = Color.Lerp( IdleButtonColor, HotButtonColor, heat );
 		if ( station.ButtonRenderer.IsValid() )
 			station.ButtonRenderer.Tint = hotColor;
+
+		var frameColor = ReadyStationColor * 0.55f;
+		var localPlayer = GetLocalPlayer();
+		if ( player is not null )
+			frameColor = player.StationIndex == LastWinnerStation && station.FinishFlash > 0f
+				? Color.Lerp( ReadyStationColor, WinnerStationColor, station.FinishFlash )
+				: ReadyStationColor;
+
+		if ( localPlayer is not null && (player is null || ReferenceEquals( player, localPlayer )) && IsPlayerInsideStationBounds( localPlayer, station ) )
+			frameColor = Color.Lerp( ReadyStationColor, HotButtonColor, 0.75f );
+
+		foreach ( var frameRenderer in station.ClaimFrameRenderers )
+		{
+			if ( frameRenderer.IsValid() )
+				frameRenderer.Tint = frameColor;
+		}
 	}
 
 	public string GetWallScreenTitle()

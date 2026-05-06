@@ -31,17 +31,28 @@ public sealed partial class PhysicalFastestTapperGame
 
 	private bool TryClaimStationFromPress( PlayerScore player, int stationIndex )
 	{
+		var station = Stations.FirstOrDefault( x => x.Index == stationIndex );
+		if ( station is null )
+		{
+			Log.Info( $"[TapperStations] mode='claim-denied-missing-station' player='{player?.Name}' station={stationIndex} active='{string.Join( ",", Stations.Select( x => x.Index ).OrderBy( x => x ) )}' players={Players.Count}" );
+			return false;
+		}
+
 		var lobbyPhase = State is RoundState.WaitingForPlayers or RoundState.Results or RoundState.Intermission;
 		var stationOwned = Players.Any( x => x != player && x.StationIndex == stationIndex );
 		if ( !TapperStationInteractionRules.CanClaimStation( lobbyPhase, player.StationIndex, stationOwned ) )
+		{
+			Log.Info( $"[TapperStations] mode='claim-denied-rules' player='{player.Name}' station={stationIndex} lobby={lobbyPhase} playerStation={player.StationIndex} owned={stationOwned}" );
 			return false;
-
-		var station = Stations.FirstOrDefault( x => x.Index == stationIndex );
-		if ( station is null )
-			return false;
+		}
 
 		if ( !IsPlayerCloseEnoughToClaim( player, station ) )
 		{
+			var playerPosition = player.Bean.IsValid() ? player.Bean.WorldPosition : default;
+			var distance = player.Bean.IsValid()
+				? MathF.Sqrt( MathF.Pow( playerPosition.x - station.Origin.x, 2f ) + MathF.Pow( playerPosition.y - station.Origin.y, 2f ) )
+				: -1f;
+			Log.Info( $"[TapperStations] mode='claim-denied-range' player='{player.Name}' station={stationIndex} distance={distance:0.##} range={(player.BeanController.IsValid() ? player.BeanController.ClaimRange : -1f):0.##} playerPosition='{(player.Bean.IsValid() ? player.Bean.WorldPosition : default)}' stationOrigin='{station.Origin}'" );
 			SetInteractionMessage( player, "WALK CLOSER" );
 			return false;
 		}
@@ -69,6 +80,28 @@ public sealed partial class PhysicalFastestTapperGame
 		return true;
 	}
 
+	private void UpdateStationClaims()
+	{
+		var lobbyPhase = State is RoundState.WaitingForPlayers or RoundState.Results or RoundState.Intermission;
+
+		foreach ( var player in Players )
+		{
+			if ( player.StationIndex < 0 )
+				continue;
+
+			var station = Stations.FirstOrDefault( x => x.Index == player.StationIndex );
+			var withinClaimRange = station is not null && IsPlayerCloseEnoughToClaim( player, station );
+			if ( !TapperStationInteractionRules.ShouldUnclaimStationOnExit( lobbyPhase, player.StationIndex, withinClaimRange ) )
+				continue;
+
+			Log.Info( $"[TapperStations] mode='unclaim-left-bounds' player='{player.Name}' station={player.StationIndex} playerPosition='{(player.Bean.IsValid() ? player.Bean.WorldPosition : default)}' stationOrigin='{(station is not null ? station.Origin : default)}'" );
+			player.StationIndex = -1;
+			player.Ready = false;
+			player.LastInteractionMessage = "STATION RELEASED";
+			player.LastInteractionMessageTime = RealTime.Now;
+		}
+	}
+
 	public bool CanPressStation( int stationIndex )
 	{
 		return CanInteractWithStation( stationIndex );
@@ -80,12 +113,15 @@ public sealed partial class PhysicalFastestTapperGame
 		if ( player is null )
 			return false;
 
+		if ( !TapperStationInteractionRules.IsStationActive( stationIndex, Stations.Select( x => x.Index ) ) )
+			return false;
+
 		if ( CanPlayerUseStation( player, stationIndex ) )
 			return true;
 
 		var lobbyPhase = State is RoundState.WaitingForPlayers or RoundState.Results or RoundState.Intermission;
 		var stationOwned = Players.Any( x => x != player && x.StationIndex == stationIndex );
-		return TapperStationInteractionRules.CanClaimStation( lobbyPhase, player.StationIndex, stationOwned );
+		return TapperStationInteractionRules.CanClaimStation( lobbyPhase, player.StationIndex, stationOwned, true );
 	}
 
 	private static bool CanPlayerUseStation( PlayerScore player, int stationIndex )
