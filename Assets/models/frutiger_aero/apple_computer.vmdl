@@ -1,0 +1,78 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:modeldoc29:version{3cec427c-1b0e-4d48-a90a-0436f33a6041} -->
+{
+	rootNode =
+	{
+		_class = "RootNode"
+		children =
+		[
+			{
+				_class = "MaterialGroupList"
+				children =
+				[
+					{
+						_class = "DefaultMaterialGroup"
+						remaps =
+						[
+							{
+								from = "material.001.vmat"
+								to = "materials/frutiger_aero/material.001.vmat"
+							},
+							{
+								from = "material.002.vmat"
+								to = "materials/frutiger_aero/material.002.vmat"
+							},
+							{
+								from = "material.003.vmat"
+								to = "materials/frutiger_aero/material.003.vmat"
+							},
+							{
+								from = "material.004.vmat"
+								to = "materials/frutiger_aero/material.004.vmat"
+							},
+							{
+								from = "material.006.vmat"
+								to = "materials/frutiger_aero/material.006.vmat"
+							},
+							{
+								from = "material.007.vmat"
+								to = "materials/frutiger_aero/material.007.vmat"
+							},
+							{
+								from = "cube.002.vmat"
+								to = "materials/frutiger_aero/cube.002.vmat"
+							},
+							{
+								from = "cube.003.vmat"
+								to = "materials/frutiger_aero/cube.003.vmat"
+							},
+						]
+						use_global_default = false
+						global_default_material = "materials/frutiger_aero/material.001.vmat"
+					},
+				]
+			},
+			{
+				_class = "RenderMeshList"
+				children =
+				[
+					{
+						_class = "RenderMeshFile"
+						name = "apple_computer"
+						filename = "models/frutiger_aero/apple_computer.fbx"
+						import_translation = [ 0.0, 0.0, 0.0 ]
+						import_rotation = [ 0.0, 0.0, 0.0 ]
+						import_scale = 50.0
+						align_origin_x_type = "None"
+						align_origin_y_type = "None"
+						align_origin_z_type = "None"
+						parent_bone = ""
+					},
+				]
+			},
+		]
+		model_archetype = ""
+		primary_associated_entity = ""
+		anim_graph_name = ""
+		base_model_name = ""
+	}
+}

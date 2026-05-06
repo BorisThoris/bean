@@ -1,0 +1,16 @@
+"Layer0"
+{
+	"shader"		"shaders/glass.shader"
+	"F_GLASS_QUALITY"		"1"
+	"TextureColor"		"textures/frutiger_aero/apple_material_002.png"
+	"TextureTranslucency"		"textures/frutiger_aero/apple_translucency_070.png"
+	"TextureRoughness"		"textures/frutiger_aero/apple_roughness_030.png"
+	"TextureNormal"		"materials/default/default_normal.tga"
+	"TextureAmbientOcclusion"		"materials/default/default_ao.tga"
+	"TextureBlendMask"		"materials/default/default_color.tga"
+	"TextureTintMask"		"materials/default/default_color.tga"
+	"g_flTintColor"		"[0.027803 0.715279 0.800079]"
+	"g_flBlurAmount"		"0.000000"
+	"g_flRefractionStrength"		"1.020000"
+	"AlbedoAbsorption"		"0.150000"
+}

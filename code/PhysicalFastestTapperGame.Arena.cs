@@ -8,7 +8,8 @@ using System.Threading.Tasks;
 public sealed partial class PhysicalFastestTapperGame
 {
 	private const string QuaterniusModelRoot = "models/quaternius/modular_sci_fi/";
-	private const string TapperButtonModel = QuaterniusModelRoot + "prop_barrel_large.vmdl";
+	private const string FrutigerAeroModelRoot = "models/frutiger_aero/";
+	private const string TapperButtonModel = FrutigerAeroModelRoot + "apple_computer.vmdl";
 	private const string StationBarFillModel = QuaterniusModelRoot + "decal_line_straight.vmdl";
 	private const string WallPanelModel = QuaterniusModelRoot + "wallband_straight.vmdl";
 	private const string WallDividedPanelModel = QuaterniusModelRoot + "wallastra_straight_divided.vmdl";
@@ -1373,17 +1374,17 @@ public sealed partial class PhysicalFastestTapperGame
 	{
 		var gameObject = FindOrCreate( $"Station {stationIndex} Physical Tap Button" );
 		gameObject.SetParent( root, false );
-		gameObject.LocalPosition = new Vector3( -30.3350067f, 278.257324f, -44.0041656f );
-		gameObject.LocalRotation = Rotation.FromYaw( -90f );
-		gameObject.LocalScale = new Vector3( 2.04328275f, 2.40413332f, 3.57657504f );
+		gameObject.LocalPosition = new Vector3( -30.3350067f, 278.257355f, 353.276367f );
+		gameObject.LocalRotation = Rotation.Identity;
+		gameObject.LocalScale = new Vector3( 1.263958f, 1.41968f, 8.215728f );
 		gameObject.Enabled = true;
 
 		var renderer = gameObject.Components.GetOrCreate<ModelRenderer>();
 		renderer.Model = Model.Load( TapperButtonModel );
-		renderer.Tint = IdleButtonColor;
+		renderer.Tint = Color.White;
 
 		var collider = gameObject.Components.GetOrCreate<BoxCollider>();
-		collider.Scale = new Vector3( 53.1989059f, 50.7844124f, 110.260498f );
+		collider.Scale = new Vector3( 118f, 104f, 72f );
 		collider.Static = true;
 		collider.IsTrigger = false;
 
@@ -1579,7 +1580,7 @@ public sealed partial class PhysicalFastestTapperGame
 			Root = FindOrCreate( $"Station {index} Root" )
 		};
 
-		station.Button = CreateModelObjectWorld( $"Station {index} Physical Tap Button", origin + new Vector3( 0f, -24f, 8f ), new Vector3( 86f, 86f, 48f ), TapperButtonModel, IdleButtonColor, false, true, ModelPlacementAnchor.Floor );
+		station.Button = CreateModelObjectWorld( $"Station {index} Physical Tap Button", origin + new Vector3( 0f, -24f, 8f ), new Vector3( 118f, 104f, 72f ), TapperButtonModel, Color.White, false, true, ModelPlacementAnchor.Floor );
 		var tapButton = station.Button.Components.GetOrCreate<PhysicalTapButton>();
 		tapButton.StationIndex = index;
 		station.ButtonRenderer = station.Button.GetComponent<ModelRenderer>();

@@ -1,0 +1,11 @@
+"Layer0"
+{
+	"shader"		"shaders/complex.shader"
+	"TextureAmbientOcclusion"		"materials/default/default_ao.tga"
+	"g_flModelTintAmount"		"1.000000"
+	"g_vColorTint"		"[0.027803 0.715279 0.800079 1.000000]"
+	"TextureColor"		"textures/frutiger_aero/apple_cube_003.png"
+	"g_flMetalness"		"0.000000"
+	"TextureNormal"		"materials/default/default_normal.tga"
+	"TextureRoughness"		"materials/default/default_rough.tga"
+}

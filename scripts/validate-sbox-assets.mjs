@@ -6,7 +6,16 @@ const sourceExtensions = new Set([".cs", ".scene", ".prefab", ".json", ".md", ".
 const ignoredDirs = new Set([".git", ".sbox", ".vs", "bin", "obj"]);
 const beanModelPath = ["models", "bean"].join("/");
 const aiSourcePath = ["source_assets", "ai3d"].join("/");
-const allowedImportedModelPath = path.normalize(path.join("Assets", "models", "quaternius"));
+const allowedImportedModelPaths = [
+  path.normalize(path.join("Assets", "models", "quaternius")),
+  path.normalize(path.join("Assets", "models", "frutiger_aero")),
+];
+const allowedImportedModelFiles = new Set([
+  path.normalize(path.join("Assets", "models", "authored", "projection_sphere.vmdl")),
+]);
+const allowedPrimitiveModelFiles = new Set([
+  path.normalize(path.join("Assets", "models", "authored", "pixel_grass_floor_slab.vmdl")),
+]);
 const importedMeshNode = ["Render", "Mesh", "File"].join("");
 const renderPrimitiveNode = ["Render", "Primitive"].join("");
 const devBoxModelPath = ["models", "dev", "box.vmdl"].join("/");
@@ -22,7 +31,6 @@ const forbiddenPatterns = [
   { pattern: new RegExp(`${beanModelPath}/`), label: "removed bean model path reference" },
   { pattern: new RegExp(`${aiSourcePath}|${aiSourcePath.replaceAll("/", "\\\\")}`), label: "removed AI source path reference" },
   { pattern: new RegExp(`${devBoxModelPath}|${devSphereModelPath}`), label: "visible dev primitive model reference" },
-  { pattern: new RegExp(renderPrimitiveNode), label: "ModelDoc render primitive node reference" },
   { pattern: new RegExp(removedAiPipelineNames.join("|")), label: "removed AI generation pipeline reference" },
 ];
 
@@ -78,8 +86,16 @@ for (const file of walk(root)) {
     }
   }
 
-  if (text.includes(importedMeshNode) && !relative.startsWith(`${allowedImportedModelPath}${path.sep}`)) {
-    fail(`imported ModelDoc mesh node reference outside ${allowedImportedModelPath} in ${relative}`);
+  const isAllowedImportedModelPath = allowedImportedModelPaths.some((allowedPath) =>
+    relative.startsWith(`${allowedPath}${path.sep}`)
+  ) || allowedImportedModelFiles.has(relative);
+
+  if (text.includes(importedMeshNode) && !isAllowedImportedModelPath) {
+    fail(`imported ModelDoc mesh node reference outside approved model paths in ${relative}`);
+  }
+
+  if (text.includes(renderPrimitiveNode) && !allowedPrimitiveModelFiles.has(relative)) {
+    fail(`ModelDoc render primitive node reference outside approved authored files in ${relative}`);
   }
 }
 

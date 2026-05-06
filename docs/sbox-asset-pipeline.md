@@ -6,6 +6,8 @@ Bean Tapper generates its game world at runtime from ready model assets and code
 
 - Game-world geometry must be placed by runtime code, not hand-authored into scene JSON.
 - World props, stations, bars, rails, room panels, lights, signs, and effects should use approved ready assets under `Assets/models/quaternius/`.
+- The Frutiger Aero Apple computer tap-button replacement is an approved imported gameplay prop under `Assets/models/frutiger_aero/`.
+- The authored projection sphere and pixel grass floor slab are approved local ModelDoc exceptions under `Assets/models/authored/`.
 - Do not add built-in dev box/sphere model paths, generated AI mesh assets, AI source asset folders, or unapproved imported mesh ModelDoc nodes for world assets.
 - Player avatar/citizen models are allowed because they are character assets, not generated world geometry.
 

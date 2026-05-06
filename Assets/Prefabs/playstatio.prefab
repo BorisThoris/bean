@@ -3,7 +3,7 @@
     "__guid": "7ddac65d-1ef8-4991-ac95-8549e7615d83",
     "__version": 2,
     "Flags": 0,
-    "Name": "PlayStatio",
+    "Name": "playstatio",
     "Position": "0,0,0",
     "Rotation": "0,0,0.707106769,0.707106769",
     "Scale": "0.791165411,0.704383969,0.121717758",
@@ -67,9 +67,9 @@
         "__version": 2,
         "Flags": 0,
         "Name": "Station 0 Physical Tap Button",
-        "Position": "-30.3350067,278.257324,-44.0041656",
-        "Rotation": "0,0,-0.707106829,0.707106829",
-        "Scale": "2.04328275,2.40413332,3.57657504",
+        "Position": "-30.3350067,278.257355,353.276367",
+        "Rotation": "0,0,0,1",
+        "Scale": "1.26395798,1.41968,8.21572781",
         "Tags": "",
         "Enabled": true,
         "NetworkMode": 2,
@@ -89,7 +89,7 @@
             "MaterialGroup": null,
             "MaterialOverride": null,
             "Materials": null,
-            "Model": "models/quaternius/modular_sci_fi/prop_barrel_large.vmdl",
+            "Model": "models/frutiger_aero/apple_computer.vmdl",
             "OnComponentDestroy": null,
             "OnComponentDisabled": null,
             "OnComponentEnabled": null,
@@ -103,7 +103,7 @@
               "AfterUILayer": false
             },
             "RenderType": "On",
-            "Tint": "0.92,0.08,0.07,1"
+            "Tint": "1,1,1,1"
           },
           {
             "__type": "Sandbox.BoxCollider",
@@ -126,7 +126,7 @@
             "OnTriggerEnter": null,
             "OnTriggerExit": null,
             "RollingResistance": null,
-            "Scale": "53.1989059,50.7844124,110.260498",
+            "Scale": "118,104,72",
             "Static": true,
             "Surface": null,
             "SurfaceVelocity": "0,0,0"
@@ -343,7 +343,28 @@
         ],
         "Children": []
       }
-    ]
+    ],
+    "__properties": {
+      "NetworkInterpolation": true,
+      "TimeScale": 1,
+      "WantsSystemScene": true,
+      "Metadata": {},
+      "NavMesh": {
+        "Enabled": false,
+        "IncludeStaticBodies": true,
+        "IncludeKeyframedBodies": true,
+        "EditorAutoUpdate": false,
+        "AgentHeight": 64,
+        "AgentRadius": 16,
+        "AgentStepSize": 18,
+        "AgentMaxSlope": 40,
+        "ExcludedBodies": "",
+        "IncludedBodies": "",
+        "DeferGeneration": false,
+        "CustomBounds": false
+      }
+    },
+    "__variables": []
   },
   "ResourceVersion": 2,
   "ShowInMenu": false,

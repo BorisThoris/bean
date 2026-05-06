@@ -366,9 +366,8 @@ public sealed partial class PhysicalFastestTapperGame
 		if ( station.Button.IsValid() )
 			station.Button.LocalScale = station.ButtonBaseScale * Math.Min( buttonScale, 2.2f );
 
-		var hotColor = Color.Lerp( IdleButtonColor, HotButtonColor, heat );
 		if ( station.ButtonRenderer.IsValid() )
-			station.ButtonRenderer.Tint = hotColor;
+			station.ButtonRenderer.Tint = Color.White;
 
 		var frameColor = ReadyStationColor * 0.55f;
 		var localPlayer = GetLocalPlayer();
