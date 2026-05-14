@@ -1,6 +1,6 @@
-# Bean Tapper
+# Bean Tapper Arena
 
-Bean Tapper is a physical s&box arcade game built from the stock `sweeper` sample. Players walk around as s&box citizen/bean characters, claim a platform by pressing that platform's physical button, then race to tap their locked button faster than everyone else.
+Bean Tapper Arena is a physical s&box arcade game built from the stock `sweeper` sample. Players walk around as s&box citizen/bean characters, claim a platform by pressing that platform's physical button, then race to tap their locked button faster than everyone else.
 
 This repository is kept as a portfolio project for multiplayer gameplay systems, physical world-space UI, runtime arena generation, host-authoritative station ownership, and C# gameplay architecture inside s&box.
 
