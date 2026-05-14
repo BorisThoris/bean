@@ -1,5 +1,5 @@
 {
-  "Title": "Fastet Clicker",
+  "Title": "Bean Tapper",
   "Type": "game",
   "Org": "sadnet",
   "Ident": "fastest-clicker",
@@ -24,7 +24,7 @@
     "ProjectTemplate": {
       "Icon": "view_in_ar",
       "Order": -10,
-      "Description": "The bare minimum required to get started in s&box."
+      "Description": "Physical multiplayer fastest-tapper arcade game with bean avatars, station ownership, tournament modes, and runtime-generated arena presentation."
     },
     "StartupScene": "test.scene",
     "DedicatedServerStartupScene": "test.scene"

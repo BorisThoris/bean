@@ -2,11 +2,13 @@
 
 Bean Tapper is a physical s&box arcade game built from the stock `sweeper` sample. Players walk around as s&box citizen/bean characters, claim a platform by pressing that platform's physical button, then race to tap their locked button faster than everyone else.
 
+This repository is kept as a portfolio project for multiplayer gameplay systems, physical world-space UI, runtime arena generation, host-authoritative station ownership, and C# gameplay architecture inside s&box.
+
 The project currently uses world-space objects and `TextRenderer` UI only. There are no Razor gameplay pages.
 
 ## Current Gameplay
 
-- Loads `Assets/scenes/minimal.scene` as the startup scene.
+- Loads `Assets/test.scene` as the startup scene.
 - Builds a minimal tapper arena at runtime, using Quaternius CC0 models for the tiled floor, wall bays, and gameplay stations.
 - Construct loading remains optional, but the default world is the generated runtime room.
 - Spawns each connection as a visible third-person citizen/bean.
@@ -27,7 +29,7 @@ The project currently uses world-space objects and `TextRenderer` UI only. There
 
 ## Project Layout
 
-- `.sbproj`: s&box game metadata. Startup scene is `scenes/minimal.scene`.
+- `.sbproj`: s&box game metadata. Startup scene is `test.scene`.
 - `Assets/scenes/minimal.scene`: main scene.
 - `code/PhysicalFastestTapperGame*.cs`: main tapper game controller split by subsystem.
 - `code/TapperPlayerBean.cs`: third-person bean movement and citizen animation.
@@ -76,4 +78,4 @@ Last known passing checks:
 
 ## Repository
 
-GitHub: https://github.com/BorisThoris/bean
+GitHub: https://github.com/BorisThoris/sbox-bean-tapper-arcade
